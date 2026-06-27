@@ -8,6 +8,13 @@ import { ListSkeleton, SkeletonLine } from "@/components/Skeleton";
 import { TaskCard } from "@/components/TaskCard";
 import { TaskCompletionModal } from "@/components/TaskCompletionModal";
 import {
+  buildDropiOrderSignal,
+  classifyDropiStage,
+  severityClasses,
+  stageLabel,
+  type DropiOrderSignal
+} from "@/lib/dropi-logistics";
+import {
   formatCurrency,
   formatDateTime,
   formatPhone,
@@ -51,6 +58,10 @@ export default function OrderDetailPage() {
   const activeTasks = useMemo(
     () => tasks.filter((task) => task.estado === "pendiente"),
     [tasks]
+  );
+  const dropiSignal = useMemo(
+    () => (order ? buildDropiOrderSignal(order, history) : null),
+    [order, history]
   );
 
   const loadData = useCallback(async () => {
@@ -258,6 +269,7 @@ export default function OrderDetailPage() {
               <span className="text-sm text-muted">Estado</span>
               <Badge kind="dropi" value={order.estado_dropi} />
             </div>
+            {dropiSignal ? <DropiSignalSummary signal={dropiSignal} /> : null}
             <DetailRow
               label="ID Dropi"
               value={order.id_orden_dropi ? String(order.id_orden_dropi) : "Sin ID"}
@@ -279,7 +291,7 @@ export default function OrderDetailPage() {
 
         <div className="space-y-6">
           <GlassCard className="p-5" hover={false} variant="panel">
-            <SectionTitle icon={MapPin} title="Estado" />
+            <SectionTitle icon={MapPin} title="Timeline Dropi" />
             {history.length ? (
               <div className="relative mt-5 space-y-5">
                 <div className="absolute bottom-2 left-[7px] top-2 w-px bg-border" />
@@ -289,6 +301,9 @@ export default function OrderDetailPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge kind="dropi" value={item.estado} />
+                        <span className="rounded-full border border-border bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted">
+                          {stageLabel(classifyDropiStage(item.estado))}
+                        </span>
                         {item.transportadora ? (
                           <span className="text-xs text-muted">{item.transportadora}</span>
                         ) : null}
@@ -419,6 +434,35 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <span className="max-w-[60%] text-right text-sm font-medium leading-6 text-slate-100">
         {value}
       </span>
+    </div>
+  );
+}
+
+function DropiSignalSummary({ signal }: { signal: DropiOrderSignal }) {
+  return (
+    <div className="border-b border-border py-3">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm text-muted">Señal</span>
+        <span
+          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses(signal.severity)}`}
+        >
+          {signal.riskLabel}
+        </span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-border bg-white/[0.05] px-3 py-2">
+          <p className="text-[11px] uppercase tracking-wider text-muted">Etapa</p>
+          <p className="mt-1 text-sm font-semibold text-slate-50">{signal.stageLabel}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-white/[0.05] px-3 py-2">
+          <p className="text-[11px] uppercase tracking-wider text-muted">Aging</p>
+          <p className="mt-1 text-sm font-semibold text-slate-50">{signal.ageLabel}</p>
+        </div>
+      </div>
+      <div className="mt-3 rounded-2xl border border-border bg-white/[0.05] p-3">
+        <p className="text-sm font-semibold text-slate-50">{signal.suggestedAction.label}</p>
+        <p className="mt-1 text-xs leading-5 text-muted">{signal.suggestedAction.description}</p>
+      </div>
     </div>
   );
 }

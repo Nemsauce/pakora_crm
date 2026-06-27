@@ -11,18 +11,31 @@ import { useCountry } from "@/components/CountryProvider";
 import { countryLabel } from "@/lib/country";
 import {
   buildCountrySummaries,
-  buildCourierHealth,
   buildPipelineStages,
   buildPriorityTasks,
   buildRecentActivity,
   buildSmartAlerts,
   dashboardTotals,
-  type CourierHealthSummary,
   type DashboardCountrySummary,
   type DashboardPipelineStage,
   type RecentActivityItem,
   type SmartAlert
 } from "@/lib/dashboard";
+import {
+  buildCourierScores,
+  buildCriticalLogisticsInbox,
+  buildDropiPipeline,
+  buildDropiRiskAlerts,
+  buildDropiSignals,
+  buildRevenueAtRiskByStatus,
+  severityClasses,
+  signalValueLabel,
+  type CourierScore,
+  type DropiOrderSignal,
+  type DropiPipelineStage,
+  type DropiRiskAlert,
+  type DropiStatusRisk
+} from "@/lib/dropi-logistics";
 import { formatCurrency, formatDateTime, formatToday } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { omitTask } from "@/lib/task-actions";
@@ -99,7 +112,7 @@ export default function DashboardPage() {
           .from("status_history")
           .select("*")
           .order("registrado_en", { ascending: false })
-          .limit(24)
+          .limit(1000)
       ]);
 
       const firstError =
@@ -152,10 +165,6 @@ export default function DashboardPage() {
     () => buildCountrySummaries(data.orders, data.tasks),
     [data.orders, data.tasks]
   );
-  const courierHealth = useMemo(
-    () => buildCourierHealth(data.orders, concreteCountry),
-    [data.orders, concreteCountry]
-  );
   const priorityTasks = useMemo(
     () => buildPriorityTasks(data.tasks, concreteCountry),
     [data.tasks, concreteCountry]
@@ -167,6 +176,30 @@ export default function DashboardPage() {
   const recentActivity = useMemo(
     () => buildRecentActivity(data.comments, data.history, data.orders, concreteCountry),
     [data.comments, data.history, data.orders, concreteCountry]
+  );
+  const dropiSignals = useMemo(
+    () => buildDropiSignals(data.orders, data.history, concreteCountry),
+    [data.orders, data.history, concreteCountry]
+  );
+  const dropiPipeline = useMemo(
+    () => buildDropiPipeline(dropiSignals, concreteCountry),
+    [dropiSignals, concreteCountry]
+  );
+  const dropiRiskAlerts = useMemo(
+    () => buildDropiRiskAlerts(dropiSignals, concreteCountry),
+    [dropiSignals, concreteCountry]
+  );
+  const criticalLogistics = useMemo(
+    () => buildCriticalLogisticsInbox(dropiSignals),
+    [dropiSignals]
+  );
+  const courierScores = useMemo(
+    () => buildCourierScores(dropiSignals),
+    [dropiSignals]
+  );
+  const revenueAtRisk = useMemo(
+    () => buildRevenueAtRiskByStatus(dropiSignals),
+    [dropiSignals]
   );
 
   async function handleOmit(task: TaskWithOrder) {
@@ -269,6 +302,7 @@ export default function DashboardPage() {
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(25rem,0.65fr)]">
         <div className="space-y-6">
           {loading ? <ListSkeleton rows={4} /> : <PipelinePanel stages={pipelineStages} />}
+          {loading ? <ListSkeleton rows={3} /> : <DropiPipelinePanel stages={dropiPipeline} />}
 
           <section className="space-y-4">
             <div className="flex items-center justify-between gap-3">
@@ -302,14 +336,21 @@ export default function DashboardPage() {
               />
             )}
           </section>
+
+          <CriticalLogisticsInbox
+            items={criticalLogistics}
+            loading={loading}
+          />
         </div>
 
         <aside className="space-y-6">
           {countryMode === "todos" ? (
             <CountryComparison summaries={countrySummaries} loading={loading} />
           ) : null}
+          <LogisticsRiskCenter alerts={dropiRiskAlerts} loading={loading} />
+          <RevenueAtRiskPanel items={revenueAtRisk} loading={loading} />
           <SmartAlerts alerts={smartAlerts} loading={loading} />
-          <CourierHealth items={courierHealth} loading={loading} />
+          <CourierScoreboard items={courierScores} loading={loading} />
           <OutcomeRates
             deliveredRate={totals.deliveredRate}
             canceledRate={totals.canceledRate}
@@ -394,6 +435,125 @@ function PipelinePanel({ stages }: { stages: DashboardPipelineStage[] }) {
   );
 }
 
+function DropiPipelinePanel({ stages }: { stages: DropiPipelineStage[] }) {
+  const maxCount = Math.max(...stages.map((stage) => stage.count), 1);
+  const totalValue = stages.reduce((total, stage) => total + stage.value, 0);
+
+  return (
+    <GlassCard className="p-5" hover={false} variant="panel">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div>
+          <div className="flex items-center gap-2">
+            <Truck aria-hidden="true" className="h-4 w-4 text-primary" />
+            <h2 className="text-lg font-semibold text-slate-50">Dropi Pipeline</h2>
+          </div>
+          <p className="mt-1 text-sm text-muted">Flujo logístico real según estados de Dropi.</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-white/[0.07] px-3 py-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <p className="text-xs uppercase tracking-wider text-muted">Valor Dropi</p>
+          <p className="mt-1 text-sm font-semibold text-slate-50">{formatCurrency(totalValue)}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {stages.map((stage) => {
+          const width = `${Math.max(7, Math.round((stage.count / maxCount) * 100))}%`;
+
+          return (
+            <Link
+              key={stage.key}
+              href={stage.href}
+              className="rounded-2xl border border-border bg-white/[0.055] p-4 transition hover:border-sky-400/30 hover:bg-white/[0.08]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-50">{stage.label}</p>
+                  <p className="mt-1 text-xs text-muted">{formatCurrency(stage.value)}</p>
+                </div>
+                <span className="text-lg font-bold text-slate-50">{stage.count}</span>
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                <div
+                  className="h-full rounded-full bg-success shadow-[0_0_18px_rgba(52,211,153,0.32)]"
+                  style={{ width }}
+                />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </GlassCard>
+  );
+}
+
+function CriticalLogisticsInbox({
+  items,
+  loading
+}: {
+  items: DropiOrderSignal[];
+  loading: boolean;
+}) {
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-50">Critical Logistics Inbox</h2>
+          <p className="mt-1 text-sm text-muted">Órdenes Dropi que necesitan intervención.</p>
+        </div>
+        <span className="text-sm text-muted">{items.length} señales</span>
+      </div>
+
+      {loading ? (
+        <ListSkeleton rows={4} />
+      ) : items.length ? (
+        <div className="space-y-3">
+          {items.map((signal) => (
+            <Link
+              key={signal.order.id}
+              href={signal.suggestedAction.href}
+              className="block rounded-2xl border border-border bg-white/[0.052] p-4 transition hover:border-sky-400/30 hover:bg-white/[0.08]"
+            >
+              <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-primary">
+                      {signal.order.numero_orden || "Sin orden"}
+                    </span>
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${severityClasses(signal.severity)}`}
+                    >
+                      {signal.riskLabel}
+                    </span>
+                    <span className="rounded-full border border-border bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted">
+                      {signal.ageLabel}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 text-sm font-semibold text-slate-50">
+                    {signal.suggestedAction.label}
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-muted">
+                    {signal.suggestedAction.description}
+                  </p>
+                </div>
+                <div className="shrink-0 text-left xl:text-right">
+                  <p className="text-sm font-semibold text-slate-50">{signalValueLabel(signal)}</p>
+                  <p className="mt-1 text-xs text-muted">{signal.status}</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={CheckCircle2}
+          title="Sin riesgos logísticos críticos"
+          message="No hay señales Dropi urgentes con los filtros actuales."
+        />
+      )}
+    </section>
+  );
+}
+
 function CountryComparison({
   summaries,
   loading
@@ -434,6 +594,83 @@ function CountryComparison({
             </Link>
           ))}
         </div>
+      )}
+    </GlassCard>
+  );
+}
+
+function LogisticsRiskCenter({ alerts, loading }: { alerts: DropiRiskAlert[]; loading: boolean }) {
+  return (
+    <GlassCard className="p-5" hover={false} variant="panel">
+      <PanelTitle icon={ShieldAlert} title="Logistics Risk Center" />
+      {loading ? (
+        <div className="mt-5 space-y-3">
+          <SkeletonLine className="h-16 w-full" />
+          <SkeletonLine className="h-16 w-full" />
+          <SkeletonLine className="h-16 w-full" />
+        </div>
+      ) : (
+        <div className="mt-5 space-y-3">
+          {alerts.map((alert) => (
+            <Link
+              key={alert.id}
+              href={alert.href}
+              className="block rounded-2xl border border-border bg-white/[0.052] p-3 transition hover:border-sky-400/30 hover:bg-white/[0.08]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-50">{alert.title}</p>
+                  <p className="mt-1 line-clamp-1 text-xs text-muted">{alert.description}</p>
+                </div>
+                <span
+                  className={`inline-flex min-w-9 justify-center rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses(alert.severity)}`}
+                >
+                  {alert.count}
+                </span>
+              </div>
+              <p className="mt-3 text-sm font-semibold text-slate-50">{formatCurrency(alert.value)}</p>
+            </Link>
+          ))}
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+function RevenueAtRiskPanel({
+  items,
+  loading
+}: {
+  items: DropiStatusRisk[];
+  loading: boolean;
+}) {
+  return (
+    <GlassCard className="p-5" hover={false} variant="panel">
+      <PanelTitle icon={CircleDollarSign} title="Revenue at Risk Dropi" />
+      {loading ? (
+        <div className="mt-5 space-y-3">
+          <SkeletonLine className="h-10 w-full" />
+          <SkeletonLine className="h-10 w-full" />
+          <SkeletonLine className="h-10 w-full" />
+        </div>
+      ) : items.length ? (
+        <div className="mt-5 space-y-3">
+          {items.map((item) => (
+            <div key={item.status} className="rounded-2xl border border-border bg-white/[0.052] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-50">{item.status}</p>
+                  <p className="mt-1 text-xs text-muted">{item.count} pedidos</p>
+                </div>
+                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses(item.severity)}`}>
+                  {formatCurrency(item.value)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-5 text-sm text-muted">Sin dinero en riesgo logístico.</p>
       )}
     </GlassCard>
   );
@@ -480,10 +717,10 @@ function SmartAlerts({ alerts, loading }: { alerts: SmartAlert[]; loading: boole
   );
 }
 
-function CourierHealth({ items, loading }: { items: CourierHealthSummary[]; loading: boolean }) {
+function CourierScoreboard({ items, loading }: { items: CourierScore[]; loading: boolean }) {
   return (
     <GlassCard className="p-5" hover={false} variant="panel">
-      <PanelTitle icon={Truck} title="Transportadoras" />
+      <PanelTitle icon={Truck} title="Courier Scoreboard" />
       {loading ? (
         <div className="mt-5 space-y-3">
           <SkeletonLine className="h-12 w-full" />
@@ -496,13 +733,19 @@ function CourierHealth({ items, loading }: { items: CourierHealthSummary[]; load
             <div key={item.name} className="rounded-2xl border border-border bg-white/[0.052] p-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="truncate text-sm font-semibold text-slate-50">{item.name}</p>
-                <p className="text-xs text-muted">{item.total} pedidos</p>
+                <p className="text-xs text-muted">{Math.round(item.healthScore)} / 100</p>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.08]">
+                <div
+                  className="h-full rounded-full bg-primary shadow-[0_0_18px_rgba(56,189,248,0.28)]"
+                  style={{ width: `${Math.max(4, item.healthScore)}%` }}
+                />
               </div>
               <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                <MiniStat label="Ruta" value={item.enRuta} />
+                <MiniStat label="Riesgo" value={item.atRisk} />
                 <MiniStat label="Nov." value={item.novedades} />
-                <MiniStat label="Ent." value={item.entregadas} />
                 <MiniStat label="Dev." value={item.devoluciones} />
+                <MiniStat label="Aging" value={item.averageAgeHours === null ? "N/D" : `${item.averageAgeHours}h`} />
               </div>
             </div>
           ))}

@@ -7,6 +7,11 @@ import { EmptyState } from "@/components/EmptyState";
 import { glassClass } from "@/components/Glass";
 import { ListSkeleton } from "@/components/Skeleton";
 import {
+  buildDropiSignals,
+  severityClasses,
+  type DropiOrderSignal
+} from "@/lib/dropi-logistics";
+import {
   formatCurrency,
   fullName,
   isEnRutaOrder,
@@ -14,7 +19,7 @@ import {
   orderNumber
 } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
-import type { Order, Task } from "@/lib/types";
+import type { Order, StatusHistory, Task } from "@/lib/types";
 import { Boxes, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,7 +32,12 @@ type FilterKey =
   | "novedad"
   | "riesgo_alto"
   | "entregadas"
-  | "canceladas";
+  | "canceladas"
+  | "sin_movimiento"
+  | "reclame_oficina"
+  | "novedad_dropi"
+  | "devolucion_dropi"
+  | "sin_guia";
 
 const filters: Array<{ key: FilterKey; label: string }> = [
   { key: "todas", label: "Todas" },
@@ -36,13 +46,19 @@ const filters: Array<{ key: FilterKey; label: string }> = [
   { key: "novedad", label: "Novedad" },
   { key: "riesgo_alto", label: "Riesgo Alto" },
   { key: "entregadas", label: "Entregadas" },
-  { key: "canceladas", label: "Canceladas" }
+  { key: "canceladas", label: "Canceladas" },
+  { key: "sin_movimiento", label: "Sin movimiento" },
+  { key: "reclame_oficina", label: "Reclame oficina" },
+  { key: "novedad_dropi", label: "Novedad Dropi" },
+  { key: "devolucion_dropi", label: "Devolución Dropi" },
+  { key: "sin_guia", label: "Sin guía" }
 ];
 
 export default function OrdersPage() {
   const router = useRouter();
   const { concreteCountry } = useCountry();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [history, setHistory] = useState<StatusHistory[]>([]);
   const [pendingTaskCounts, setPendingTaskCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("todas");
@@ -59,12 +75,13 @@ export default function OrdersPage() {
         ordersQuery = ordersQuery.eq("pais", concreteCountry);
       }
 
-      const [ordersResult, tasksResult] = await Promise.all([
+      const [ordersResult, tasksResult, historyResult] = await Promise.all([
         ordersQuery,
-        supabase.from("tasks").select("id, order_id, estado").eq("estado", "pendiente")
+        supabase.from("tasks").select("id, order_id, estado").eq("estado", "pendiente"),
+        supabase.from("status_history").select("*").order("registrado_en", { ascending: false }).limit(2000)
       ]);
 
-      const firstError = ordersResult.error ?? tasksResult.error;
+      const firstError = ordersResult.error ?? tasksResult.error ?? historyResult.error;
       if (firstError) throw firstError;
 
       const counts = ((tasksResult.data ?? []) as Pick<Task, "order_id">[]).reduce<
@@ -75,6 +92,7 @@ export default function OrdersPage() {
       }, {});
 
       setOrders((ordersResult.data ?? []) as Order[]);
+      setHistory((historyResult.data ?? []) as StatusHistory[]);
       setPendingTaskCounts(counts);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "No se pudieron cargar las órdenes");
@@ -90,6 +108,7 @@ export default function OrdersPage() {
       .channel("orders-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, loadData)
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, loadData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "status_history" }, loadData)
       .subscribe();
 
     return () => {
@@ -106,10 +125,20 @@ export default function OrdersPage() {
     }
   }, []);
 
+  const signalsByOrderId = useMemo(() => {
+    const entries = buildDropiSignals(orders, history, concreteCountry).map((signal) => [
+      signal.order.id,
+      signal
+    ]);
+    return new Map(entries as Array<[string, DropiOrderSignal]>);
+  }, [orders, history, concreteCountry]);
+
   const filteredOrders = useMemo(() => {
     const term = normalize(search);
 
     return orders.filter((order) => {
+      const signal = signalsByOrderId.get(order.id);
+      const status = signal?.status ?? "";
       const matchesSearch =
         !term ||
         [
@@ -130,10 +159,17 @@ export default function OrdersPage() {
       if (filter === "riesgo_alto") return order.nivel_riesgo === "alto";
       if (filter === "entregadas") return order.estado_crm === "entregado";
       if (filter === "canceladas") return order.estado_crm === "cancelado";
+      if (filter === "sin_movimiento") {
+        return status.includes("SIN MOV") || (signal?.reasons.includes("Sin movimiento") ?? false);
+      }
+      if (filter === "reclame_oficina") return status.includes("RECLAME");
+      if (filter === "novedad_dropi") return status.includes("NOVED") && !status.includes("SOLUCION");
+      if (filter === "devolucion_dropi") return status.includes("DEVOL");
+      if (filter === "sin_guia") return signal?.reasons.includes("Sin guía") ?? false;
 
       return true;
     });
-  }, [orders, search, filter]);
+  }, [orders, search, filter, signalsByOrderId]);
 
   function openOrder(orderId: string) {
     router.push(`/ordenes/${orderId}`);
@@ -203,6 +239,7 @@ export default function OrdersPage() {
                   <th className="px-4 py-3">Ciudad</th>
                   <th className="px-4 py-3">Envio</th>
                   <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3">Señal Dropi</th>
                   <th className="px-4 py-3">Riesgo</th>
                   <th className="px-4 py-3 text-right">Tareas</th>
                 </tr>
@@ -249,6 +286,9 @@ export default function OrdersPage() {
                       <Badge kind="dropi" value={order.estado_dropi} />
                     </td>
                     <td className="px-4 py-4 align-top">
+                      <DropiSignalPill signal={signalsByOrderId.get(order.id)} />
+                    </td>
+                    <td className="px-4 py-4 align-top">
                       <Badge kind="risk" value={order.nivel_riesgo} />
                     </td>
                     <td className="px-4 py-4 text-right align-top text-sm font-semibold text-slate-50">
@@ -283,6 +323,7 @@ export default function OrdersPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <CountryBadge country={order.pais} />
                   <Badge kind="dropi" value={order.estado_dropi} />
+                  <DropiSignalPill signal={signalsByOrderId.get(order.id)} />
                   <Badge kind="risk" value={order.nivel_riesgo} />
                   <span className="inline-flex items-center rounded-full border border-border bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                     {pendingTaskCounts[order.id] ?? 0} tareas
@@ -308,5 +349,25 @@ export default function OrdersPage() {
         />
       )}
     </div>
+  );
+}
+
+function DropiSignalPill({ signal }: { signal?: DropiOrderSignal }) {
+  if (!signal) {
+    return (
+      <span className="inline-flex rounded-full border border-border bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted">
+        Sin señal
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${severityClasses(signal.severity)}`}
+      title={`${signal.status} · ${signal.ageLabel}`}
+    >
+      <span className="truncate">{signal.riskLabel}</span>
+      <span className="text-[10px] opacity-80">{signal.ageLabel}</span>
+    </span>
   );
 }
