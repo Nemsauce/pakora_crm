@@ -27,6 +27,12 @@ export function TaskCard({
   const order = task.orders ?? task.order ?? null;
   const canAct = task.estado === "pendiente";
   const interactive = Boolean(onOpen);
+  const priorityReasons = Array.isArray(
+    (task as TaskWithOrder & { priorityReasons?: string[] }).priorityReasons
+  )
+    ? ((task as TaskWithOrder & { priorityReasons?: string[] }).priorityReasons ?? [])
+    : [];
+  const overdue = Boolean((task as TaskWithOrder & { overdue?: boolean }).overdue);
 
   function handleOpen() {
     onOpen?.(task);
@@ -70,6 +76,18 @@ export function TaskCard({
                 Intento {task.intento_numero}
               </span>
             ) : null}
+            {priorityReasons.slice(0, 3).map((reason) => (
+              <span
+                key={reason}
+                className={`rounded-full border px-2 py-1 text-xs font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
+                  overdue && reason === "Vencida"
+                    ? "border-danger/30 bg-danger/[0.14] text-danger"
+                    : "border-primary/20 bg-primary/[0.1] text-primary"
+                }`}
+              >
+                {reason}
+              </span>
+            ))}
           </div>
 
           <h3 className="mt-3 truncate text-sm font-semibold text-slate-50">
