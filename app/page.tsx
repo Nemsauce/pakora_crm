@@ -1,7 +1,7 @@
 "use client";
 
 import { EmptyState } from "@/components/EmptyState";
-import { GlassCard } from "@/components/Glass";
+import { GlassCard, glassClass } from "@/components/Glass";
 import { MetricCard } from "@/components/MetricCard";
 import { CardSkeleton, ListSkeleton, SkeletonLine } from "@/components/Skeleton";
 import { TaskCard } from "@/components/TaskCard";
@@ -22,23 +22,21 @@ import {
   buildLogisticsPipeline,
   buildLogisticsRiskAlerts,
   buildOrderIntelligence,
-  buildRevenueRiskBuckets,
   buildUnifiedActionInbox,
   severityClasses,
-  signalValueLabel,
   type ActionInboxItem,
   type CourierPerformance,
   type IntelligenceCountrySummary,
   type LogisticsPipelineStage,
-  type LogisticsRiskAlert,
-  type RevenueRiskBucket
+  type LogisticsRiskAlert
 } from "@/lib/order-intelligence";
-import { formatCurrency, formatDateTime, formatToday } from "@/lib/format";
+import { formatDateTime, formatToday } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { omitTask } from "@/lib/task-actions";
 import type { Order, OrderComment, StatusHistory, TaskWithOrder } from "@/lib/types";
 import {
   Activity,
+  AlertTriangle,
   ArrowUpRight,
   BarChart3,
   CheckCircle2,
@@ -49,8 +47,6 @@ import {
   PackageCheck,
   ShieldAlert,
   Truck,
-  Users,
-  Zap,
   type LucideIcon
 } from "lucide-react";
 import Link from "next/link";
@@ -190,10 +186,6 @@ export default function DashboardPage() {
     () => buildCourierPerformance(intelligence),
     [intelligence]
   );
-  const revenueAtRisk = useMemo(
-    () => buildRevenueRiskBuckets(intelligence, concreteCountry),
-    [intelligence, concreteCountry]
-  );
 
   async function handleOmit(task: TaskWithOrder) {
     setBusyTaskId(task.id);
@@ -216,17 +208,20 @@ export default function DashboardPage() {
             Command Center {countryLabel(countryMode)}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            Prioridad operativa, dinero en movimiento y riesgos COD en una sola vista.
+            Prioridad operativa, tareas urgentes y riesgos COD en una sola vista.
           </p>
         </div>
-        <GlassCard
-          className="inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-sm text-muted"
-          hover={false}
-          variant="control"
+        <Link
+          href="/finanzas"
+          className={glassClass(
+            "control",
+            true,
+            "inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-muted hover:text-slate-50"
+          )}
         >
-          <Zap aria-hidden="true" className="h-4 w-4 text-primary" />
-          Pakora CRM
-        </GlassCard>
+          <CircleDollarSign aria-hidden="true" className="h-4 w-4 text-primary" />
+          Ver Finanzas
+        </Link>
       </section>
 
       {error && (
@@ -254,18 +249,18 @@ export default function DashboardPage() {
               href={orderHref("activas")}
             />
             <MetricCard
-              title="Dinero en ruta"
-              value={formatCurrency(totals.valueInRoute)}
+              title="En ruta"
+              value={totals.enRuta}
               icon={Truck}
               accent="primary"
               href={orderHref("en_ruta")}
             />
             <MetricCard
-              title="Dinero en riesgo"
-              value={formatCurrency(totals.valueAtRisk)}
-              icon={CircleDollarSign}
+              title="Novedades"
+              value={totals.novedades}
+              icon={AlertTriangle}
               accent="danger"
-              href={orderHref("riesgo_alto")}
+              href={orderHref("novedad")}
             />
             <MetricCard
               title="Tareas vencidas"
@@ -331,7 +326,6 @@ export default function DashboardPage() {
             <CountryComparison summaries={countrySummaries} loading={loading} />
           ) : null}
           <LogisticsRiskCenter alerts={dropiRiskAlerts} loading={loading} />
-          <RevenueAtRiskPanel items={revenueAtRisk} loading={loading} />
           <CourierScoreboard items={courierScores} loading={loading} />
           <OutcomeRates
             deliveredRate={totals.deliveredRate}
@@ -368,7 +362,7 @@ export default function DashboardPage() {
 
 function PipelinePanel({ stages }: { stages: DashboardPipelineStage[] }) {
   const maxCount = Math.max(...stages.map((stage) => stage.count), 1);
-  const totalValue = stages.reduce((total, stage) => total + stage.value, 0);
+  const totalCount = stages.reduce((total, stage) => total + stage.count, 0);
 
   return (
     <GlassCard className="p-5" hover={false} variant="panel">
@@ -381,8 +375,8 @@ function PipelinePanel({ stages }: { stages: DashboardPipelineStage[] }) {
           <p className="mt-1 text-sm text-muted">Estado operativo de pedidos y valor asociado.</p>
         </div>
         <div className="rounded-2xl border border-border bg-white/[0.07] px-3 py-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-          <p className="text-xs uppercase tracking-wider text-muted">Valor total</p>
-          <p className="mt-1 text-sm font-semibold text-slate-50">{formatCurrency(totalValue)}</p>
+          <p className="text-xs uppercase tracking-wider text-muted">Pedidos</p>
+          <p className="mt-1 text-sm font-semibold text-slate-50">{totalCount}</p>
         </div>
       </div>
 
@@ -399,7 +393,7 @@ function PipelinePanel({ stages }: { stages: DashboardPipelineStage[] }) {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-50">{stage.label}</p>
-                  <p className="mt-1 text-xs text-muted">{formatCurrency(stage.value)}</p>
+                  <p className="mt-1 text-xs text-muted">Flujo CRM</p>
                 </div>
                 <span className="text-lg font-bold text-slate-50">{stage.count}</span>
               </div>
@@ -419,7 +413,7 @@ function PipelinePanel({ stages }: { stages: DashboardPipelineStage[] }) {
 
 function DropiPipelinePanel({ stages }: { stages: LogisticsPipelineStage[] }) {
   const maxCount = Math.max(...stages.map((stage) => stage.count), 1);
-  const totalValue = stages.reduce((total, stage) => total + stage.value, 0);
+  const totalCount = stages.reduce((total, stage) => total + stage.count, 0);
 
   return (
     <GlassCard className="p-5" hover={false} variant="panel">
@@ -432,8 +426,8 @@ function DropiPipelinePanel({ stages }: { stages: LogisticsPipelineStage[] }) {
           <p className="mt-1 text-sm text-muted">Flujo logístico real según estados de Dropi.</p>
         </div>
         <div className="rounded-2xl border border-border bg-white/[0.07] px-3 py-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-          <p className="text-xs uppercase tracking-wider text-muted">Valor Dropi</p>
-          <p className="mt-1 text-sm font-semibold text-slate-50">{formatCurrency(totalValue)}</p>
+          <p className="text-xs uppercase tracking-wider text-muted">Pedidos</p>
+          <p className="mt-1 text-sm font-semibold text-slate-50">{totalCount}</p>
         </div>
       </div>
 
@@ -450,7 +444,7 @@ function DropiPipelinePanel({ stages }: { stages: LogisticsPipelineStage[] }) {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-50">{stage.label}</p>
-                  <p className="mt-1 text-xs text-muted">{formatCurrency(stage.value)}</p>
+                  <p className="mt-1 text-xs text-muted">Flujo Dropi</p>
                 </div>
                 <span className="text-lg font-bold text-slate-50">{stage.count}</span>
               </div>
@@ -534,8 +528,8 @@ function ActionInbox({
                   </p>
                 </div>
                 <div className="shrink-0 text-left xl:text-right">
-                  <p className="text-sm font-semibold text-slate-50">{signalValueLabel(item.logistics)}</p>
-                  <p className="mt-1 text-xs text-muted">{item.logistics.displayStatus}</p>
+                  <p className="text-sm font-semibold text-slate-50">{item.logistics.stageLabel}</p>
+                  <p className="mt-1 text-xs text-muted">{item.logistics.ageLabel}</p>
                   <p className="mt-1 text-xs text-primary">{item.actionLabel}</p>
                 </div>
               </div>
@@ -620,49 +614,10 @@ function LogisticsRiskCenter({ alerts, loading }: { alerts: LogisticsRiskAlert[]
                   {alert.count}
                 </span>
               </div>
-              <p className="mt-3 text-sm font-semibold text-slate-50">{formatCurrency(alert.value)}</p>
+              <p className="mt-3 text-sm font-semibold text-slate-50">{alert.count} pedidos afectados</p>
             </Link>
           ))}
         </div>
-      )}
-    </GlassCard>
-  );
-}
-
-function RevenueAtRiskPanel({
-  items,
-  loading
-}: {
-  items: RevenueRiskBucket[];
-  loading: boolean;
-}) {
-  return (
-    <GlassCard className="p-5" hover={false} variant="panel">
-      <PanelTitle icon={CircleDollarSign} title="Revenue at Risk Dropi" />
-      {loading ? (
-        <div className="mt-5 space-y-3">
-          <SkeletonLine className="h-10 w-full" />
-          <SkeletonLine className="h-10 w-full" />
-          <SkeletonLine className="h-10 w-full" />
-        </div>
-      ) : items.length ? (
-        <div className="mt-5 space-y-3">
-          {items.map((item) => (
-            <div key={item.status} className="rounded-2xl border border-border bg-white/[0.052] p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-50">{item.status}</p>
-                  <p className="mt-1 text-xs text-muted">{item.count} pedidos</p>
-                </div>
-                <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses(item.severity)}`}>
-                  {formatCurrency(item.value)}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-5 text-sm text-muted">Sin dinero en riesgo logístico.</p>
       )}
     </GlassCard>
   );

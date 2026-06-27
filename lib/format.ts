@@ -84,6 +84,17 @@ export function formatCurrency(value?: number | null) {
   }).format(amount);
 }
 
+export function formatMoney(value?: number | null, country?: Pick<Order, "pais">["pais"] | null) {
+  const amount = Number(value ?? 0);
+  const isMexico = country === "MX";
+
+  return new Intl.NumberFormat(isMexico ? "es-MX" : CO_LOCALE, {
+    style: "currency",
+    currency: isMexico ? "MXN" : "COP",
+    maximumFractionDigits: 0
+  }).format(amount);
+}
+
 export function formatPhone(value?: string | null) {
   if (!value) return "Sin teléfono";
 

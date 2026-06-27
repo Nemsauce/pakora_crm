@@ -1,14 +1,15 @@
 "use client";
 
 import { CountryToggle } from "@/components/CountryToggle";
-import { BarChart3, CheckSquare, Package2 } from "lucide-react";
+import { BarChart3, CheckSquare, CircleDollarSign, Package2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: BarChart3 },
   { href: "/ordenes", label: "Órdenes", icon: Package2 },
-  { href: "/tareas", label: "Tareas", icon: CheckSquare }
+  { href: "/tareas", label: "Tareas", icon: CheckSquare },
+  { href: "/finanzas", label: "Finanzas", icon: CircleDollarSign }
 ];
 
 export function TopNav() {
@@ -66,7 +67,7 @@ export function TopNav() {
         </div>
       </div>
 
-      <nav className="grid grid-cols-3 border-t border-border px-8 py-2 md:hidden">
+      <nav className="grid grid-cols-4 border-t border-border px-8 py-2 md:hidden">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);

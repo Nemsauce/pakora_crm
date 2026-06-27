@@ -49,6 +49,17 @@ export interface Order {
   cantidad: number | null;
   precio: number | null;
   total: number | null;
+  costo_producto: number | null;
+  costo_envio: number | null;
+  costo_devolucion: number | null;
+  comision_cod: number | null;
+  valor_recaudado: number | null;
+  valor_liquidado: number | null;
+  estado_recaudo: string | null;
+  estado_liquidacion: string | null;
+  fecha_entrega_real: string | null;
+  fecha_recaudo: string | null;
+  fecha_liquidacion: string | null;
   notas_pedido: string | null;
   guia_envio: string | null;
   transportadora: string | null;
