@@ -8,9 +8,10 @@ import { TaskCard } from "@/components/TaskCard";
 import { TaskCompletionModal } from "@/components/TaskCompletionModal";
 import { TaskSlideOver } from "@/components/TaskSlideOver";
 import { labelFromMap, taskStatusLabels, taskTypeLabels } from "@/lib/format";
+import { buildOrderIntelligence } from "@/lib/order-intelligence";
 import { supabase } from "@/lib/supabase";
 import { omitTask } from "@/lib/task-actions";
-import type { TaskStatus, TaskType, TaskWithOrder } from "@/lib/types";
+import type { Order, StatusHistory, TaskStatus, TaskType, TaskWithOrder } from "@/lib/types";
 import { ClipboardCheck, Filter } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -37,6 +38,7 @@ const statusOptions: Array<{ value: EstadoFilter; label: string }> = [
 export default function TasksPage() {
   const { concreteCountry } = useCountry();
   const [tasks, setTasks] = useState<TaskWithOrder[]>([]);
+  const [history, setHistory] = useState<StatusHistory[]>([]);
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("pendiente");
   const [loading, setLoading] = useState(true);
@@ -62,7 +64,20 @@ export default function TasksPage() {
 
       if (tasksError) throw tasksError;
 
-      setTasks((data ?? []) as TaskWithOrder[]);
+      const loadedTasks = (data ?? []) as TaskWithOrder[];
+      const orderIds = Array.from(new Set(loadedTasks.map((task) => task.order_id).filter(Boolean)));
+      const historyResult = orderIds.length
+        ? await supabase
+            .from("status_history")
+            .select("*")
+            .in("order_id", orderIds)
+            .order("registrado_en", { ascending: false })
+        : { data: [], error: null };
+
+      if (historyResult.error) throw historyResult.error;
+
+      setTasks(loadedTasks);
+      setHistory((historyResult.data ?? []) as StatusHistory[]);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "No se pudieron cargar las tareas");
     } finally {
@@ -77,6 +92,7 @@ export default function TasksPage() {
       .channel("tasks-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, loadData)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, loadData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "status_history" }, loadData)
       .subscribe();
 
     return () => {
@@ -98,14 +114,53 @@ export default function TasksPage() {
     }
   }, []);
 
+  const enrichedTasks = useMemo(() => {
+    const orders = Array.from(
+      new Map(
+        tasks
+          .map((task) => task.orders ?? task.order)
+          .filter((order): order is Order => Boolean(order))
+          .map((order) => [order.id, order])
+      ).values()
+    );
+    const intelligenceByOrderId = new Map(
+      buildOrderIntelligence(orders, tasks, history, [], concreteCountry).map((item) => [
+        item.order.id,
+        item
+      ])
+    );
+
+    return tasks.map((task) => {
+      const intelligence = intelligenceByOrderId.get(task.order_id);
+      if (!intelligence) return task;
+
+      const overdue =
+        task.estado === "pendiente" &&
+        Boolean(task.fecha_limite) &&
+        new Date(task.fecha_limite as string).getTime() < Date.now();
+      const priorityReasons =
+        intelligence.logistics.severity === "danger" || intelligence.logistics.severity === "warning"
+          ? intelligence.logistics.reasons.slice(0, 2)
+          : [];
+
+      return {
+        ...task,
+        order: task.order ?? intelligence.order,
+        orders: task.orders ?? intelligence.order,
+        overdue,
+        priorityReasons
+      } as TaskWithOrder & { overdue: boolean; priorityReasons: string[] };
+    });
+  }, [tasks, history, concreteCountry]);
+
   const filteredTasks = useMemo(
     () =>
-      tasks.filter((task) => {
+      enrichedTasks.filter((task) => {
         const matchesType = tipoFilter === "todos" || task.tipo === tipoFilter;
         const matchesStatus = estadoFilter === "todos" || task.estado === estadoFilter;
         return matchesType && matchesStatus;
       }),
-    [tasks, tipoFilter, estadoFilter]
+    [enrichedTasks, tipoFilter, estadoFilter]
   );
 
   const groupedTasks = useMemo(() => {

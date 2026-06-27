@@ -8,12 +8,12 @@ import { ListSkeleton, SkeletonLine } from "@/components/Skeleton";
 import { TaskCard } from "@/components/TaskCard";
 import { TaskCompletionModal } from "@/components/TaskCompletionModal";
 import {
-  buildDropiOrderSignal,
-  classifyDropiStage,
+  buildOrderIntelligence,
+  classifyLogisticsStage,
   severityClasses,
-  stageLabel,
-  type DropiOrderSignal
-} from "@/lib/dropi-logistics";
+  logisticsStageLabel,
+  type LogisticsSignal
+} from "@/lib/order-intelligence";
 import {
   formatCurrency,
   formatDateTime,
@@ -59,10 +59,11 @@ export default function OrderDetailPage() {
     () => tasks.filter((task) => task.estado === "pendiente"),
     [tasks]
   );
-  const dropiSignal = useMemo(
-    () => (order ? buildDropiOrderSignal(order, history) : null),
-    [order, history]
+  const intelligence = useMemo(
+    () => (order ? buildOrderIntelligence([order], tasks, history, comments)[0] ?? null : null),
+    [order, tasks, history, comments]
   );
+  const dropiSignal = intelligence?.logistics ?? null;
 
   const loadData = useCallback(async () => {
     if (!orderId) return;
@@ -86,7 +87,7 @@ export default function OrderDetailPage() {
           .from("status_history")
           .select("*")
           .eq("order_id", orderId)
-          .order("registrado_en", { ascending: true })
+          .order("registrado_en", { ascending: false })
       ]);
 
       const firstError =
@@ -302,7 +303,7 @@ export default function OrderDetailPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge kind="dropi" value={item.estado} />
                         <span className="rounded-full border border-border bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted">
-                          {stageLabel(classifyDropiStage(item.estado))}
+                          {logisticsStageLabel(classifyLogisticsStage(item.estado))}
                         </span>
                         {item.transportadora ? (
                           <span className="text-xs text-muted">{item.transportadora}</span>
@@ -438,11 +439,11 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DropiSignalSummary({ signal }: { signal: DropiOrderSignal }) {
+function DropiSignalSummary({ signal }: { signal: LogisticsSignal }) {
   return (
     <div className="border-b border-border py-3">
       <div className="flex items-center justify-between gap-4">
-        <span className="text-sm text-muted">Señal</span>
+        <span className="text-sm text-muted">Riesgo detectado</span>
         <span
           className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses(signal.severity)}`}
         >
@@ -455,9 +456,14 @@ function DropiSignalSummary({ signal }: { signal: DropiOrderSignal }) {
           <p className="mt-1 text-sm font-semibold text-slate-50">{signal.stageLabel}</p>
         </div>
         <div className="rounded-xl border border-border bg-white/[0.05] px-3 py-2">
-          <p className="text-[11px] uppercase tracking-wider text-muted">Aging</p>
+          <p className="text-[11px] uppercase tracking-wider text-muted">Tiempo en estado</p>
           <p className="mt-1 text-sm font-semibold text-slate-50">{signal.ageLabel}</p>
         </div>
+      </div>
+      <div className="mt-3 rounded-2xl border border-border bg-white/[0.05] p-3">
+        <p className="text-[11px] uppercase tracking-wider text-muted">Último evento Dropi</p>
+        <p className="mt-1 text-sm font-semibold text-slate-50">{signal.displayStatus}</p>
+        <p className="mt-1 text-xs text-muted">{formatDateTime(signal.latestEventAt)}</p>
       </div>
       <div className="mt-3 rounded-2xl border border-border bg-white/[0.05] p-3">
         <p className="text-sm font-semibold text-slate-50">{signal.suggestedAction.label}</p>

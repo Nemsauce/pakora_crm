@@ -10,39 +10,35 @@ import { TaskSlideOver } from "@/components/TaskSlideOver";
 import { useCountry } from "@/components/CountryProvider";
 import { countryLabel } from "@/lib/country";
 import {
-  buildCountrySummaries,
   buildPipelineStages,
-  buildPriorityTasks,
   buildRecentActivity,
-  buildSmartAlerts,
-  dashboardTotals,
-  type DashboardCountrySummary,
   type DashboardPipelineStage,
-  type RecentActivityItem,
-  type SmartAlert
+  type RecentActivityItem
 } from "@/lib/dashboard";
 import {
-  buildCourierScores,
-  buildCriticalLogisticsInbox,
-  buildDropiPipeline,
-  buildDropiRiskAlerts,
-  buildDropiSignals,
-  buildRevenueAtRiskByStatus,
+  buildCourierPerformance,
+  buildDashboardIntelligenceSummary,
+  buildIntelligenceCountrySummaries,
+  buildLogisticsPipeline,
+  buildLogisticsRiskAlerts,
+  buildOrderIntelligence,
+  buildRevenueRiskBuckets,
+  buildUnifiedActionInbox,
   severityClasses,
   signalValueLabel,
-  type CourierScore,
-  type DropiOrderSignal,
-  type DropiPipelineStage,
-  type DropiRiskAlert,
-  type DropiStatusRisk
-} from "@/lib/dropi-logistics";
+  type ActionInboxItem,
+  type CourierPerformance,
+  type IntelligenceCountrySummary,
+  type LogisticsPipelineStage,
+  type LogisticsRiskAlert,
+  type RevenueRiskBucket
+} from "@/lib/order-intelligence";
 import { formatCurrency, formatDateTime, formatToday } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { omitTask } from "@/lib/task-actions";
 import type { Order, OrderComment, StatusHistory, TaskWithOrder } from "@/lib/types";
 import {
   Activity,
-  AlertTriangle,
   ArrowUpRight,
   BarChart3,
   CheckCircle2,
@@ -100,28 +96,33 @@ export default function DashboardPage() {
         tasksQuery = tasksQuery.eq("orders.pais", concreteCountry);
       }
 
-      const [ordersResult, tasksResult, commentsResult, historyResult] = await Promise.all([
+      const [ordersResult, tasksResult, commentsResult] = await Promise.all([
         ordersQuery,
         tasksQuery,
         supabase
           .from("comentarios")
           .select("*")
           .order("created_at", { ascending: false })
-          .limit(24),
-        supabase
-          .from("status_history")
-          .select("*")
-          .order("registrado_en", { ascending: false })
-          .limit(1000)
+          .limit(24)
       ]);
 
-      const firstError =
-        ordersResult.error ?? tasksResult.error ?? commentsResult.error ?? historyResult.error;
-
+      const firstError = ordersResult.error ?? tasksResult.error ?? commentsResult.error;
       if (firstError) throw firstError;
 
+      const loadedOrders = (ordersResult.data ?? []) as Order[];
+      const orderIds = loadedOrders.map((order) => order.id);
+      const historyResult = orderIds.length
+        ? await supabase
+            .from("status_history")
+            .select("*")
+            .in("order_id", orderIds)
+            .order("registrado_en", { ascending: false })
+        : { data: [], error: null };
+
+      if (historyResult.error) throw historyResult.error;
+
       setData({
-        orders: (ordersResult.data ?? []) as Order[],
+        orders: loadedOrders,
         tasks: (tasksResult.data ?? []) as TaskWithOrder[],
         comments: (commentsResult.data ?? []) as OrderComment[],
         history: (historyResult.data ?? []) as StatusHistory[]
@@ -153,53 +154,45 @@ export default function DashboardPage() {
   const taskHref = (query: string) => `/tareas?${countryQuery}${query}`;
   const orderHref = (filter: string) => `/ordenes?${countryQuery}filter=${filter}`;
 
+  const intelligence = useMemo(
+    () => buildOrderIntelligence(data.orders, data.tasks, data.history, data.comments, concreteCountry),
+    [data.orders, data.tasks, data.history, data.comments, concreteCountry]
+  );
   const totals = useMemo(
-    () => dashboardTotals(data.orders, data.tasks, concreteCountry),
-    [data.orders, data.tasks, concreteCountry]
+    () => buildDashboardIntelligenceSummary(intelligence),
+    [intelligence]
   );
   const pipelineStages = useMemo(
     () => buildPipelineStages(data.orders, concreteCountry),
     [data.orders, concreteCountry]
   );
   const countrySummaries = useMemo(
-    () => buildCountrySummaries(data.orders, data.tasks),
-    [data.orders, data.tasks]
-  );
-  const priorityTasks = useMemo(
-    () => buildPriorityTasks(data.tasks, concreteCountry),
-    [data.tasks, concreteCountry]
-  );
-  const smartAlerts = useMemo(
-    () => buildSmartAlerts(data.orders, data.tasks, concreteCountry),
-    [data.orders, data.tasks, concreteCountry]
+    () => buildIntelligenceCountrySummaries(intelligence),
+    [intelligence]
   );
   const recentActivity = useMemo(
     () => buildRecentActivity(data.comments, data.history, data.orders, concreteCountry),
     [data.comments, data.history, data.orders, concreteCountry]
   );
-  const dropiSignals = useMemo(
-    () => buildDropiSignals(data.orders, data.history, concreteCountry),
-    [data.orders, data.history, concreteCountry]
+  const actionInbox = useMemo(
+    () => buildUnifiedActionInbox(intelligence),
+    [intelligence]
   );
   const dropiPipeline = useMemo(
-    () => buildDropiPipeline(dropiSignals, concreteCountry),
-    [dropiSignals, concreteCountry]
+    () => buildLogisticsPipeline(intelligence, concreteCountry),
+    [intelligence, concreteCountry]
   );
   const dropiRiskAlerts = useMemo(
-    () => buildDropiRiskAlerts(dropiSignals, concreteCountry),
-    [dropiSignals, concreteCountry]
-  );
-  const criticalLogistics = useMemo(
-    () => buildCriticalLogisticsInbox(dropiSignals),
-    [dropiSignals]
+    () => buildLogisticsRiskAlerts(intelligence, concreteCountry),
+    [intelligence, concreteCountry]
   );
   const courierScores = useMemo(
-    () => buildCourierScores(dropiSignals),
-    [dropiSignals]
+    () => buildCourierPerformance(intelligence),
+    [intelligence]
   );
   const revenueAtRisk = useMemo(
-    () => buildRevenueAtRiskByStatus(dropiSignals),
-    [dropiSignals]
+    () => buildRevenueRiskBuckets(intelligence, concreteCountry),
+    [intelligence, concreteCountry]
   );
 
   async function handleOmit(task: TaskWithOrder) {
@@ -307,40 +300,30 @@ export default function DashboardPage() {
           <section className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-slate-50">Priority Inbox</h2>
-                <p className="mt-1 text-sm text-muted">Gestiones críticas para proteger entrega y caja.</p>
+                <h2 className="text-lg font-semibold text-slate-50">Unified Action Inbox</h2>
+                <p className="mt-1 text-sm text-muted">Tareas reales y señales Dropi priorizadas sin duplicados.</p>
               </div>
-              <span className="text-sm text-muted">{priorityTasks.length} pendientes</span>
+              <span className="text-sm text-muted">{actionInbox.length} acciones</span>
             </div>
 
             {loading ? (
               <ListSkeleton rows={5} />
-            ) : priorityTasks.length ? (
-              <div className="space-y-3">
-                {priorityTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onComplete={setSelectedTask}
-                    onOmit={handleOmit}
-                    onOpen={setPreviewTask}
-                    busy={busyTaskId === task.id}
-                  />
-                ))}
-              </div>
+            ) : actionInbox.length ? (
+              <ActionInbox
+                items={actionInbox}
+                busyTaskId={busyTaskId}
+                onComplete={setSelectedTask}
+                onOmit={handleOmit}
+                onOpen={setPreviewTask}
+              />
             ) : (
               <EmptyState
                 icon={CheckCircle2}
                 title="Sin tareas pendientes"
-                message="La operación está al día para este corte."
+                message="No hay tareas ni señales Dropi urgentes con los filtros actuales."
               />
             )}
           </section>
-
-          <CriticalLogisticsInbox
-            items={criticalLogistics}
-            loading={loading}
-          />
         </div>
 
         <aside className="space-y-6">
@@ -349,7 +332,6 @@ export default function DashboardPage() {
           ) : null}
           <LogisticsRiskCenter alerts={dropiRiskAlerts} loading={loading} />
           <RevenueAtRiskPanel items={revenueAtRisk} loading={loading} />
-          <SmartAlerts alerts={smartAlerts} loading={loading} />
           <CourierScoreboard items={courierScores} loading={loading} />
           <OutcomeRates
             deliveredRate={totals.deliveredRate}
@@ -435,7 +417,7 @@ function PipelinePanel({ stages }: { stages: DashboardPipelineStage[] }) {
   );
 }
 
-function DropiPipelinePanel({ stages }: { stages: DropiPipelineStage[] }) {
+function DropiPipelinePanel({ stages }: { stages: LogisticsPipelineStage[] }) {
   const maxCount = Math.max(...stages.map((stage) => stage.count), 1);
   const totalValue = stages.reduce((total, stage) => total + stage.value, 0);
 
@@ -486,71 +468,81 @@ function DropiPipelinePanel({ stages }: { stages: DropiPipelineStage[] }) {
   );
 }
 
-function CriticalLogisticsInbox({
+function ActionInbox({
   items,
-  loading
+  busyTaskId,
+  onComplete,
+  onOmit,
+  onOpen
 }: {
-  items: DropiOrderSignal[];
-  loading: boolean;
+  items: ActionInboxItem[];
+  busyTaskId: string | null;
+  onComplete: (task: TaskWithOrder) => void;
+  onOmit: (task: TaskWithOrder) => void;
+  onOpen: (task: TaskWithOrder) => void;
 }) {
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-50">Critical Logistics Inbox</h2>
-          <p className="mt-1 text-sm text-muted">Órdenes Dropi que necesitan intervención.</p>
-        </div>
-        <span className="text-sm text-muted">{items.length} señales</span>
-      </div>
+    <div className="space-y-3">
+      {items.map((item) => {
+        if (item.kind === "task" && item.task) {
+          return (
+            <TaskCard
+              key={item.id}
+              task={item.task}
+              onComplete={onComplete}
+              onOmit={onOmit}
+              onOpen={onOpen}
+              busy={busyTaskId === item.task.id}
+            />
+          );
+        }
 
-      {loading ? (
-        <ListSkeleton rows={4} />
-      ) : items.length ? (
-        <div className="space-y-3">
-          {items.map((signal) => (
+        return (
             <Link
-              key={signal.order.id}
-              href={signal.suggestedAction.href}
+              key={item.id}
+              href={item.href}
               className="block rounded-2xl border border-border bg-white/[0.052] p-4 transition hover:border-sky-400/30 hover:bg-white/[0.08]"
             >
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-primary">
-                      {signal.order.numero_orden || "Sin orden"}
+                      {item.order.numero_orden || "Sin orden"}
                     </span>
                     <span
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${severityClasses(signal.severity)}`}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${severityClasses(item.severity)}`}
                     >
-                      {signal.riskLabel}
+                      {item.logistics.riskLabel}
                     </span>
                     <span className="rounded-full border border-border bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted">
-                      {signal.ageLabel}
+                      {item.logistics.ageLabel}
                     </span>
+                    {item.priorityReasons.slice(0, 3).map((reason) => (
+                      <span
+                        key={reason}
+                        className="rounded-full border border-primary/20 bg-primary/[0.1] px-2.5 py-1 text-xs font-medium text-primary"
+                      >
+                        {reason}
+                      </span>
+                    ))}
                   </div>
                   <h3 className="mt-3 text-sm font-semibold text-slate-50">
-                    {signal.suggestedAction.label}
+                    {item.title}
                   </h3>
                   <p className="mt-1 text-sm leading-6 text-muted">
-                    {signal.suggestedAction.description}
+                    {item.description}
                   </p>
                 </div>
                 <div className="shrink-0 text-left xl:text-right">
-                  <p className="text-sm font-semibold text-slate-50">{signalValueLabel(signal)}</p>
-                  <p className="mt-1 text-xs text-muted">{signal.status}</p>
+                  <p className="text-sm font-semibold text-slate-50">{signalValueLabel(item.logistics)}</p>
+                  <p className="mt-1 text-xs text-muted">{item.logistics.displayStatus}</p>
+                  <p className="mt-1 text-xs text-primary">{item.actionLabel}</p>
                 </div>
               </div>
             </Link>
-          ))}
-        </div>
-      ) : (
-        <EmptyState
-          icon={CheckCircle2}
-          title="Sin riesgos logísticos críticos"
-          message="No hay señales Dropi urgentes con los filtros actuales."
-        />
-      )}
-    </section>
+        );
+      })}
+    </div>
   );
 }
 
@@ -558,7 +550,7 @@ function CountryComparison({
   summaries,
   loading
 }: {
-  summaries: DashboardCountrySummary[];
+  summaries: IntelligenceCountrySummary[];
   loading: boolean;
 }) {
   return (
@@ -599,7 +591,7 @@ function CountryComparison({
   );
 }
 
-function LogisticsRiskCenter({ alerts, loading }: { alerts: DropiRiskAlert[]; loading: boolean }) {
+function LogisticsRiskCenter({ alerts, loading }: { alerts: LogisticsRiskAlert[]; loading: boolean }) {
   return (
     <GlassCard className="p-5" hover={false} variant="panel">
       <PanelTitle icon={ShieldAlert} title="Logistics Risk Center" />
@@ -641,7 +633,7 @@ function RevenueAtRiskPanel({
   items,
   loading
 }: {
-  items: DropiStatusRisk[];
+  items: RevenueRiskBucket[];
   loading: boolean;
 }) {
   return (
@@ -676,48 +668,7 @@ function RevenueAtRiskPanel({
   );
 }
 
-function SmartAlerts({ alerts, loading }: { alerts: SmartAlert[]; loading: boolean }) {
-  const severityClasses = {
-    danger: "border-danger/30 bg-danger/[0.12] text-danger",
-    warning: "border-warning/30 bg-warning/[0.12] text-warning",
-    primary: "border-primary/30 bg-primary/[0.12] text-primary"
-  };
-
-  return (
-    <GlassCard className="p-5" hover={false} variant="panel">
-      <PanelTitle icon={AlertTriangle} title="Alertas" />
-      {loading ? (
-        <div className="mt-5 space-y-3">
-          <SkeletonLine className="h-14 w-full" />
-          <SkeletonLine className="h-14 w-full" />
-          <SkeletonLine className="h-14 w-full" />
-        </div>
-      ) : (
-        <div className="mt-5 space-y-3">
-          {alerts.map((alert) => (
-            <Link
-              key={alert.id}
-              href={alert.href}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-white/[0.052] px-3 py-3 transition hover:border-sky-400/30 hover:bg-white/[0.08]"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-50">{alert.title}</p>
-                <p className="mt-1 line-clamp-1 text-xs text-muted">{alert.description}</p>
-              </div>
-              <span
-                className={`inline-flex min-w-9 justify-center rounded-full border px-2.5 py-1 text-xs font-semibold ${severityClasses[alert.severity]}`}
-              >
-                {alert.count}
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </GlassCard>
-  );
-}
-
-function CourierScoreboard({ items, loading }: { items: CourierScore[]; loading: boolean }) {
+function CourierScoreboard({ items, loading }: { items: CourierPerformance[]; loading: boolean }) {
   return (
     <GlassCard className="p-5" hover={false} variant="panel">
       <PanelTitle icon={Truck} title="Courier Scoreboard" />
@@ -742,9 +693,9 @@ function CourierScoreboard({ items, loading }: { items: CourierScore[]; loading:
                 />
               </div>
               <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                <MiniStat label="Riesgo" value={item.atRisk} />
-                <MiniStat label="Nov." value={item.novedades} />
-                <MiniStat label="Dev." value={item.devoluciones} />
+                <MiniStat label="Riesgo" value={`${Math.round(item.atRiskRate * 100)}%`} />
+                <MiniStat label="Nov." value={`${Math.round(item.noveltyRate * 100)}%`} />
+                <MiniStat label="Dev." value={`${Math.round(item.returnRate * 100)}%`} />
                 <MiniStat label="Aging" value={item.averageAgeHours === null ? "N/D" : `${item.averageAgeHours}h`} />
               </div>
             </div>
