@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/Badge";
+import { glassClass } from "@/components/Glass";
 import { formatDateTime, formatPhone, fullName, orderNumber } from "@/lib/format";
 import type { TaskWithOrder } from "@/lib/types";
 import { Ban, CalendarClock, Check, Phone } from "lucide-react";
@@ -33,7 +34,7 @@ export function TaskCard({
 
   return (
     <article
-      className={`bg-white/[0.04] backdrop-blur-xl border border-slate-400/10 rounded-xl hover:border-sky-400/20 transition-all duration-200 p-4 ${
+      className={`${glassClass("task", true, "p-4")} ${
         interactive ? "cursor-pointer" : ""
       }`}
       role={interactive ? "button" : undefined}
@@ -65,7 +66,7 @@ export function TaskCard({
             )}
             <Badge kind="taskType" value={task.tipo} />
             {task.intento_numero ? (
-              <span className="rounded-full border border-border bg-white/[0.04] px-2 py-1 text-xs font-medium text-muted">
+              <span className="rounded-full border border-border bg-white/[0.07] px-2 py-1 text-xs font-medium text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                 Intento {task.intento_numero}
               </span>
             ) : null}
@@ -114,7 +115,7 @@ export function TaskCard({
                   onOmit(task);
                 }}
                 disabled={busy}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-white/[0.04] text-muted transition hover:border-danger/30 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-white/[0.07] text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:border-danger/30 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
                 title="Omitir"
                 aria-label="Omitir tarea"
               >

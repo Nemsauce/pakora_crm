@@ -3,6 +3,7 @@
 import { Badge } from "@/components/Badge";
 import { CountryBadge } from "@/components/CountryBadge";
 import { EmptyState } from "@/components/EmptyState";
+import { GlassCard } from "@/components/Glass";
 import { ListSkeleton, SkeletonLine } from "@/components/Skeleton";
 import { TaskCard } from "@/components/TaskCard";
 import { TaskCompletionModal } from "@/components/TaskCompletionModal";
@@ -178,11 +179,11 @@ export default function OrderDetailPage() {
     return (
       <div className="space-y-6">
         <SkeletonLine className="h-10 w-28" />
-        <div className="bg-white/[0.04] backdrop-blur-xl border border-slate-400/10 rounded-2xl p-6">
+        <GlassCard className="p-6" hover={false} variant="panel">
           <SkeletonLine className="h-5 w-32" />
           <SkeletonLine className="mt-4 h-8 w-72 max-w-full" />
           <SkeletonLine className="mt-5 h-10 w-48" />
-        </div>
+        </GlassCard>
         <ListSkeleton rows={4} />
       </div>
     );
@@ -203,7 +204,7 @@ export default function OrderDetailPage() {
       <button
         type="button"
         onClick={() => router.back()}
-        className="inline-flex items-center gap-2 rounded-xl border border-border bg-white/[0.04] px-3 py-2 text-sm font-medium text-muted backdrop-blur-xl transition hover:border-primary/30 hover:text-slate-50"
+        className="inline-flex items-center gap-2 rounded-xl border border-border bg-white/[0.07] px-3 py-2 text-sm font-medium text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl transition hover:border-primary/30 hover:text-slate-50"
       >
         <ArrowLeft aria-hidden="true" className="h-4 w-4" />
         Volver
@@ -215,7 +216,7 @@ export default function OrderDetailPage() {
         </div>
       )}
 
-      <section className="bg-white/[0.04] backdrop-blur-xl border border-slate-400/10 rounded-2xl p-5 sm:p-6">
+      <GlassCard className="p-5 sm:p-6" hover={false} variant="panel">
         <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-primary">{orderNumber(order)}</p>
@@ -236,7 +237,7 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
-      </section>
+      </GlassCard>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <div className="space-y-4">
@@ -277,7 +278,7 @@ export default function OrderDetailPage() {
         </div>
 
         <div className="space-y-6">
-          <section className="bg-white/[0.04] backdrop-blur-xl border border-slate-400/10 rounded-2xl p-5">
+          <GlassCard className="p-5" hover={false} variant="panel">
             <SectionTitle icon={MapPin} title="Estado" />
             {history.length ? (
               <div className="relative mt-5 space-y-5">
@@ -300,7 +301,7 @@ export default function OrderDetailPage() {
             ) : (
               <p className="mt-4 text-sm text-muted">Sin historial registrado.</p>
             )}
-          </section>
+          </GlassCard>
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -319,13 +320,13 @@ export default function OrderDetailPage() {
                 />
               ))
             ) : (
-              <div className="bg-white/[0.04] backdrop-blur-xl border border-slate-400/10 rounded-2xl px-4 py-5 text-sm text-muted">
+              <GlassCard className="px-4 py-5 text-sm text-muted" hover={false} variant="task">
                 Sin tareas activas.
-              </div>
+              </GlassCard>
             )}
           </section>
 
-          <section className="bg-white/[0.04] backdrop-blur-xl border border-slate-400/10 rounded-2xl p-5">
+          <GlassCard className="p-5" hover={false} variant="panel">
             <SectionTitle icon={MessageSquare} title="Comentarios" />
             <div className="mt-5 space-y-4">
               {comments.length ? (
@@ -351,7 +352,7 @@ export default function OrderDetailPage() {
                 onChange={(event) => setCommentText(event.target.value)}
                 rows={4}
                 placeholder="Agregar comentario..."
-                className="w-full resize-none rounded-2xl border border-border bg-slate-950/40 px-3 py-3 text-sm text-slate-50 outline-none transition placeholder:text-muted focus:border-primary/50"
+                className="w-full resize-none rounded-2xl border border-border bg-white/[0.06] px-3 py-3 text-sm text-slate-50 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition placeholder:text-muted focus:border-primary/50"
               />
               <div className="mt-3 flex justify-end">
                 <button
@@ -369,7 +370,7 @@ export default function OrderDetailPage() {
                 </button>
               </div>
             </div>
-          </section>
+          </GlassCard>
         </div>
       </div>
 
@@ -393,17 +394,17 @@ function InfoCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="bg-white/[0.04] backdrop-blur-xl border border-slate-400/10 rounded-2xl p-5">
+    <GlassCard className="p-5" hover={false} variant="panel">
       <SectionTitle icon={Icon} title={title} />
       <div className="mt-3">{children}</div>
-    </section>
+    </GlassCard>
   );
 }
 
 function SectionTitle({ icon: Icon, title }: { icon: typeof User; title: string }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-white/[0.04] text-primary">
+      <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-white/[0.07] text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
         <Icon aria-hidden="true" className="h-4 w-4" />
       </div>
       <h2 className="text-sm font-semibold text-slate-50">{title}</h2>
@@ -424,9 +425,9 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 function RiskStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-white/[0.04] backdrop-blur-xl border border-slate-400/10 rounded-2xl px-3 py-3 text-center">
+    <GlassCard className="px-3 py-3 text-center" hover={false} variant="control">
       <p className="text-lg font-semibold text-slate-50">{value}</p>
       <p className="mt-1 text-xs text-muted">{label}</p>
-    </div>
+    </GlassCard>
   );
 }

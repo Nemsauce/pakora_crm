@@ -1,19 +1,38 @@
 import type { HTMLAttributes } from "react";
 
-export function GlassCard({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
+type GlassVariant = "default" | "metric" | "task" | "panel" | "control";
+
+const variantClasses: Record<GlassVariant, string> = {
+  default: "pakora-glass",
+  metric: "pakora-glass pakora-glass-metric",
+  task: "pakora-glass pakora-glass-task",
+  panel: "pakora-glass pakora-glass-panel",
+  control: "pakora-glass pakora-glass-control"
+};
+
+interface GlassCardProps extends HTMLAttributes<HTMLDivElement> {
+  hover?: boolean;
+  variant?: GlassVariant;
+}
+
+export function glassClass(variant: GlassVariant = "default", hover = false, className = "") {
+  return `${variantClasses[variant]} ${hover ? "pakora-glass-hover" : ""} ${className}`.trim();
+}
+
+export function GlassCard({
+  className = "",
+  hover = true,
+  variant = "default",
+  ...props
+}: GlassCardProps) {
   return (
     <div
-      className={`rounded-2xl border border-slate-400/10 bg-white/[0.04] backdrop-blur-xl transition-all duration-300 ${className}`}
+      className={glassClass(variant, hover, className)}
       {...props}
     />
   );
 }
 
 export function GlassPanel({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={`rounded-3xl border border-slate-400/10 bg-[#0F172A]/80 backdrop-blur-2xl shadow-[0_24px_80px_rgba(2,8,23,0.35)] ${className}`}
-      {...props}
-    />
-  );
+  return <GlassCard className={className} hover={false} variant="panel" {...props} />;
 }

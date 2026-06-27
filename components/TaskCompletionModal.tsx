@@ -1,5 +1,6 @@
 "use client";
 
+import { GlassCard } from "@/components/Glass";
 import { completeTask } from "@/lib/task-actions";
 import type { TaskWithOrder } from "@/lib/types";
 import { Check, Loader2, X } from "lucide-react";
@@ -54,8 +55,8 @@ export function TaskCompletionModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 py-4 backdrop-blur-sm sm:items-center">
-      <div className="w-full max-w-lg bg-white/[0.04] backdrop-blur-xl border border-slate-400/10 rounded-2xl p-5">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 px-4 py-4 backdrop-blur-md sm:items-center">
+      <GlassCard className="w-full max-w-lg p-5" hover={false} variant="panel">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-slate-50">Completar tarea</p>
@@ -64,7 +65,7 @@ export function TaskCompletionModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-border bg-white/[0.03] p-2 text-muted transition hover:border-primary/30 hover:text-slate-50"
+            className="rounded-xl border border-border bg-white/[0.07] p-2 text-muted transition hover:border-primary/30 hover:text-slate-50"
             title="Cerrar"
             aria-label="Cerrar"
           >
@@ -79,7 +80,7 @@ export function TaskCompletionModal({
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           rows={5}
-          className="mt-2 w-full resize-none rounded-2xl border border-border bg-slate-950/40 px-3 py-3 text-sm text-slate-50 outline-none transition placeholder:text-muted focus:border-primary/50"
+          className="mt-2 w-full resize-none rounded-2xl border border-border bg-white/[0.06] px-3 py-3 text-sm text-slate-50 outline-none shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] transition placeholder:text-muted focus:border-primary/50"
           placeholder="Resultado de la gestión..."
         />
 
@@ -93,7 +94,7 @@ export function TaskCompletionModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary/30 hover:text-slate-50"
+            className="rounded-xl border border-border bg-white/[0.04] px-4 py-2 text-sm font-medium text-muted transition hover:border-primary/30 hover:text-slate-50"
           >
             Cancelar
           </button>
@@ -111,7 +112,7 @@ export function TaskCompletionModal({
             Completar
           </button>
         </div>
-      </div>
+      </GlassCard>
     </div>
   );
 }

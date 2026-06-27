@@ -17,7 +17,7 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <CountryProvider>
-          <div className="min-h-screen bg-transparent">
+          <div className="pakora-app-shell min-h-screen bg-transparent">
             <TopNav />
             <main className="mt-28 w-full px-8 py-6 md:mt-20">{children}</main>
           </div>

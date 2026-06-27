@@ -1,6 +1,7 @@
 "use client";
 
 import { EmptyState } from "@/components/EmptyState";
+import { GlassCard } from "@/components/Glass";
 import { MetricCard } from "@/components/MetricCard";
 import { CardSkeleton, ListSkeleton } from "@/components/Skeleton";
 import { TaskCard } from "@/components/TaskCard";
@@ -202,10 +203,14 @@ export default function DashboardPage() {
             Dashboard {countryLabel(countryMode)}
           </h1>
         </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-white/[0.04] px-3 py-2 text-sm text-muted backdrop-blur-xl">
+        <GlassCard
+          className="inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-sm text-muted"
+          hover={false}
+          variant="control"
+        >
           <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-primary" />
           Pakora CRM
-        </div>
+        </GlassCard>
       </section>
 
       {error && (

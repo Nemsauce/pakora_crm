@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/Badge";
+import { glassClass } from "@/components/Glass";
 import { formatDateTime, formatPhone, fullName, orderNumber } from "@/lib/format";
 import type { TaskWithOrder } from "@/lib/types";
 import { Ban, CalendarClock, Check, ExternalLink, Phone, X } from "lucide-react";
@@ -44,14 +45,14 @@ export function TaskSlideOver({
       <button
         type="button"
         aria-label="Cerrar panel"
-        className={`absolute inset-0 bg-black/50 transition-opacity duration-300 ${
+        className={`absolute inset-0 bg-black/45 backdrop-blur-[2px] transition-opacity duration-300 ${
           entered ? "opacity-100" : "opacity-0"
         }`}
         onClick={onClose}
       />
 
       <aside
-        className={`absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-slate-400/10 bg-[#0F172A]/95 shadow-[0_0_40px_rgba(2,8,23,0.6)] backdrop-blur-xl transition-transform duration-300 ease-out sm:w-[32rem] ${
+        className={`${glassClass("panel", false, "pakora-slide-panel absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-y-0 border-r-0 transition-transform duration-300 ease-out sm:w-[32rem]")} ${
           entered ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -66,7 +67,7 @@ export function TaskSlideOver({
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-400/10 bg-white/[0.04] text-muted transition hover:border-sky-400/30 hover:text-slate-50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-400/10 bg-white/[0.07] text-muted transition hover:border-sky-400/30 hover:text-slate-50"
               aria-label="Cerrar"
               title="Cerrar"
             >
@@ -80,12 +81,12 @@ export function TaskSlideOver({
             <div className="flex flex-wrap items-center gap-2">
               <Badge kind="taskType" value={task.tipo} />
               {task.intento_numero ? (
-                <span className="rounded-full border border-slate-400/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-muted">
+                <span className="rounded-full border border-slate-400/10 bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted">
                   Intento {task.intento_numero}
                 </span>
               ) : null}
               {task.creado_por ? (
-                <span className="rounded-full border border-slate-400/10 bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-muted">
+                <span className="rounded-full border border-slate-400/10 bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted">
                   {task.creado_por}
                 </span>
               ) : null}
@@ -99,7 +100,7 @@ export function TaskSlideOver({
             </p>
           </section>
 
-          <section className="space-y-3 rounded-2xl border border-slate-400/10 bg-white/[0.04] p-4 backdrop-blur-xl">
+          <section className={glassClass("control", false, "space-y-3 p-4")}>
             <a
               href={order?.telefono ? `tel:${order.telefono.replace(/\s/g, "")}` : undefined}
               className="flex items-center gap-3 text-sm text-slate-100 transition hover:text-primary"
@@ -128,7 +129,7 @@ export function TaskSlideOver({
               type="button"
               onClick={() => onOmit(task)}
               disabled={busy || !canAct}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-400/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-muted transition hover:border-danger/30 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-400/10 bg-white/[0.07] px-4 py-3 text-sm font-semibold text-muted transition hover:border-danger/30 hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Ban aria-hidden="true" className="h-4 w-4" />
               Omitir

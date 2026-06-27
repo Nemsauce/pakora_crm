@@ -15,15 +15,15 @@ export function TopNav() {
   const pathname = usePathname();
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 bg-[#020817]/80 backdrop-blur-xl border-b border-slate-400/10">
+    <header className="pakora-nav-glass fixed inset-x-0 top-0 z-40 border-b border-slate-400/10">
       <div className="flex h-16 w-full items-center justify-between px-8">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/30 bg-primary/[0.15] text-sm font-extrabold text-primary">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/30 bg-primary/[0.16] text-sm font-extrabold text-primary shadow-[0_0_24px_rgba(56,189,248,0.18)]">
             P
           </div>
           <div className="flex items-center gap-2">
             <span className="text-base font-semibold tracking-normal text-slate-50">Pakora</span>
-            <span className="rounded-full border border-slate-400/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-semibold uppercase text-muted">
+            <span className="rounded-full border border-slate-400/10 bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold uppercase text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
               CRM
             </span>
           </div>
@@ -40,7 +40,9 @@ export function TopNav() {
                 key={item.href}
                 href={item.href}
                 className={`relative flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
-                  active ? "text-slate-50" : "text-muted hover:text-slate-50"
+                  active
+                    ? "bg-white/[0.05] text-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                    : "text-muted hover:bg-white/[0.04] hover:text-slate-50"
                 }`}
               >
                 <Icon aria-hidden="true" className="h-4 w-4" />
@@ -55,7 +57,7 @@ export function TopNav() {
 
         <div className="flex items-center gap-3">
           <CountryToggle />
-          <div className="hidden h-8 items-center rounded-full border border-slate-400/10 bg-white/[0.04] px-3 text-xs font-medium text-muted lg:flex">
+          <div className="hidden h-8 items-center rounded-full border border-slate-400/10 bg-white/[0.06] px-3 text-xs font-medium text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] lg:flex">
             Operación COD
           </div>
           <div className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/30 bg-primary/[0.15] text-xs font-semibold text-primary">

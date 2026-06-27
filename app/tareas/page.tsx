@@ -2,6 +2,7 @@
 
 import { EmptyState } from "@/components/EmptyState";
 import { useCountry } from "@/components/CountryProvider";
+import { glassClass } from "@/components/Glass";
 import { ListSkeleton } from "@/components/Skeleton";
 import { TaskCard } from "@/components/TaskCard";
 import { TaskCompletionModal } from "@/components/TaskCompletionModal";
@@ -142,7 +143,7 @@ export default function TasksPage() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex items-center gap-2 rounded-2xl border border-border bg-white/[0.04] px-3 py-2 backdrop-blur-xl">
+          <label className={glassClass("control", false, "flex items-center gap-2 px-3 py-2")}>
             <Filter aria-hidden="true" className="h-4 w-4 text-muted" />
             <select
               value={tipoFilter}
@@ -158,7 +159,7 @@ export default function TasksPage() {
             </select>
           </label>
 
-          <label className="rounded-2xl border border-border bg-white/[0.04] px-3 py-2 backdrop-blur-xl">
+          <label className={glassClass("control", false, "px-3 py-2")}>
             <select
               value={estadoFilter}
               onChange={(event) => setEstadoFilter(event.target.value as EstadoFilter)}
@@ -190,7 +191,7 @@ export default function TasksPage() {
                 <h2 className="text-sm font-semibold text-slate-50">
                   {labelFromMap(type, taskTypeLabels)}
                 </h2>
-                <span className="rounded-full border border-border bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-muted">
+                <span className="rounded-full border border-border bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                   {group.length}
                 </span>
               </div>

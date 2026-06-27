@@ -7,7 +7,7 @@ export function CountryToggle() {
   const { countryMode, setCountryMode } = useCountry();
 
   return (
-    <div className="flex rounded-2xl border border-slate-400/10 bg-white/[0.04] p-1 backdrop-blur-xl">
+    <div className="pakora-glass pakora-glass-control flex rounded-2xl p-1">
       {countryModes.map((mode) => {
         const active = countryMode === mode;
 
@@ -18,8 +18,8 @@ export function CountryToggle() {
             onClick={() => setCountryMode(mode)}
             className={`inline-flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-xs font-semibold transition sm:px-3 ${
               active
-                ? "bg-sky-400 text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.22)]"
-                : "text-muted hover:bg-white/[0.05] hover:text-slate-50"
+                ? "bg-sky-400 text-slate-950 shadow-[0_0_24px_rgba(56,189,248,0.32)]"
+                : "text-muted hover:bg-white/[0.07] hover:text-slate-50"
             }`}
           >
             <span aria-hidden="true">{countryFlag(mode)}</span>
