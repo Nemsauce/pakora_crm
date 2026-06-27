@@ -8,12 +8,13 @@ import { TaskSlideOver } from "@/components/TaskSlideOver";
 import { labelFromMap, taskStatusLabels, taskTypeLabels } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { omitTask } from "@/lib/task-actions";
-import type { TaskStatus, TaskType, TaskWithOrder } from "@/lib/types";
+import type { CountryCode, TaskStatus, TaskType, TaskWithOrder } from "@/lib/types";
 import { ClipboardCheck, Filter } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type TipoFilter = "todos" | TaskType;
 type EstadoFilter = "todos" | TaskStatus;
+type CountryFilter = "todos" | CountryCode;
 
 const taskTypeOrder: TaskType[] = [
   "llamar_confirmacion",
@@ -32,10 +33,17 @@ const statusOptions: Array<{ value: EstadoFilter; label: string }> = [
   { value: "todos", label: "Todas" }
 ];
 
+const countryOptions: Array<{ value: CountryFilter; label: string }> = [
+  { value: "todos", label: "Todos" },
+  { value: "CO", label: "Colombia" },
+  { value: "MX", label: "México" }
+];
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<TaskWithOrder[]>([]);
   const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>("pendiente");
+  const [countryFilter, setCountryFilter] = useState<CountryFilter>("todos");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskWithOrder | null>(null);
@@ -46,10 +54,16 @@ export default function TasksPage() {
     try {
       setError(null);
 
-      const { data, error: tasksError } = await supabase
+      let tasksQuery = supabase
         .from("tasks")
-        .select("*, orders(*)")
+        .select(countryFilter === "todos" ? "*, orders(*)" : "*, orders!inner(*)")
         .order("fecha_limite", { ascending: true, nullsFirst: false });
+
+      if (countryFilter !== "todos") {
+        tasksQuery = tasksQuery.eq("orders.pais", countryFilter);
+      }
+
+      const { data, error: tasksError } = await tasksQuery;
 
       if (tasksError) throw tasksError;
 
@@ -59,7 +73,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [countryFilter]);
 
   useEffect(() => {
     loadData();
@@ -79,6 +93,7 @@ export default function TasksPage() {
     const params = new URLSearchParams(window.location.search);
     const tipo = params.get("tipo");
     const estado = params.get("estado");
+    const pais = params.get("pais");
 
     if (tipo === "todos" || taskTypeOrder.includes(tipo as TaskType)) {
       setTipoFilter(tipo as TipoFilter);
@@ -86,6 +101,10 @@ export default function TasksPage() {
 
     if (estado === "todos" || statusOptions.some((option) => option.value === estado)) {
       setEstadoFilter(estado as EstadoFilter);
+    }
+
+    if (countryOptions.some((option) => option.value === pais)) {
+      setCountryFilter(pais as CountryFilter);
     }
   }, []);
 
@@ -133,7 +152,21 @@ export default function TasksPage() {
           <h1 className="mt-2 text-2xl font-semibold text-slate-50 sm:text-3xl">Tareas</h1>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="rounded-2xl border border-border bg-white/[0.04] px-3 py-2 backdrop-blur-xl">
+            <select
+              value={countryFilter}
+              onChange={(event) => setCountryFilter(event.target.value as CountryFilter)}
+              className="w-full bg-transparent text-sm text-slate-50 outline-none"
+            >
+              {countryOptions.map((country) => (
+                <option key={country.value} value={country.value}>
+                  {country.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="flex items-center gap-2 rounded-2xl border border-border bg-white/[0.04] px-3 py-2 backdrop-blur-xl">
             <Filter aria-hidden="true" className="h-4 w-4 text-muted" />
             <select

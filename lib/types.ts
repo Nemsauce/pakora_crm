@@ -1,5 +1,7 @@
 export type RiskLevel = "sin_datos" | "bajo" | "medio" | "alto";
 
+export type CountryCode = "CO" | "MX";
+
 export type OrderCrmStatus =
   | "nuevo"
   | "contactado"
@@ -40,6 +42,7 @@ export interface Order {
   barrio_referencia: string | null;
   ciudad: string | null;
   departamento: string | null;
+  pais: CountryCode | string | null;
   nombre_producto: string | null;
   cantidad: number | null;
   precio: number | null;

@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/Badge";
+import { CountryBadge } from "@/components/CountryBadge";
 import { EmptyState } from "@/components/EmptyState";
 import { ListSkeleton, SkeletonLine } from "@/components/Skeleton";
 import { TaskCard } from "@/components/TaskCard";
@@ -229,6 +230,7 @@ export default function OrderDetailPage() {
             <p className="text-sm text-muted">Total</p>
             <p className="mt-1 text-3xl font-bold text-slate-50">{formatCurrency(order.total)}</p>
             <div className="mt-3 flex flex-wrap gap-2 lg:justify-end">
+              <CountryBadge country={order.pais} />
               <Badge kind="crmStatus" value={order.estado_crm} />
               <Badge kind="risk" value={order.nivel_riesgo} />
             </div>

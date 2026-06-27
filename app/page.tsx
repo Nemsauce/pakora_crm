@@ -14,14 +14,16 @@ import { AlertTriangle, CheckCircle2, PackageCheck, PhoneCall, Truck } from "luc
 import { useCallback, useEffect, useState } from "react";
 
 interface Metrics {
-  activeOrders: number;
+  activeOrdersCO: number;
+  activeOrdersMX: number;
   confirmationTasks: number;
   enRuta: number;
   novedades: number;
 }
 
 const initialMetrics: Metrics = {
-  activeOrders: 0,
+  activeOrdersCO: 0,
+  activeOrdersMX: 0,
   confirmationTasks: 0,
   enRuta: 0,
   novedades: 0
@@ -41,13 +43,23 @@ export default function DashboardPage() {
       setError(null);
 
       const [
-        activeOrdersResult,
+        activeOrdersCOResult,
+        activeOrdersMXResult,
         confirmationTasksResult,
         enRutaOrdersResult,
         novedadesResult,
         pendingTasksResult
       ] = await Promise.all([
-        supabase.from("orders").select("id", { count: "exact", head: true }).eq("activo", true),
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("activo", true)
+          .eq("pais", "CO"),
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("activo", true)
+          .eq("pais", "MX"),
         supabase
           .from("tasks")
           .select("id", { count: "exact", head: true })
@@ -68,7 +80,8 @@ export default function DashboardPage() {
       ]);
 
       const firstError =
-        activeOrdersResult.error ??
+        activeOrdersCOResult.error ??
+        activeOrdersMXResult.error ??
         confirmationTasksResult.error ??
         enRutaOrdersResult.error ??
         novedadesResult.error ??
@@ -77,7 +90,8 @@ export default function DashboardPage() {
       if (firstError) throw firstError;
 
       setMetrics({
-        activeOrders: activeOrdersResult.count ?? 0,
+        activeOrdersCO: activeOrdersCOResult.count ?? 0,
+        activeOrdersMX: activeOrdersMXResult.count ?? 0,
         confirmationTasks: confirmationTasksResult.count ?? 0,
         enRuta: (enRutaOrdersResult.data ?? []).filter(isEnRutaOrder).length,
         novedades: novedadesResult.count ?? 0
@@ -142,15 +156,23 @@ export default function DashboardPage() {
             <CardSkeleton />
             <CardSkeleton />
             <CardSkeleton />
+            <CardSkeleton />
           </>
         ) : (
           <>
             <MetricCard
-              title="Pedidos Activos"
-              value={metrics.activeOrders}
+              title="Pedidos Activos Colombia"
+              value={metrics.activeOrdersCO}
               icon={PackageCheck}
               accent="primary"
-              href="/ordenes?filter=activas"
+              href="/ordenes?pais=CO&filter=activas"
+            />
+            <MetricCard
+              title="Pedidos Activos México"
+              value={metrics.activeOrdersMX}
+              icon={PackageCheck}
+              accent="primary"
+              href="/ordenes?pais=MX&filter=activas"
             />
             <MetricCard
               title="Por Confirmar"
