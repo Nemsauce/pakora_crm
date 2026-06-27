@@ -1,5 +1,6 @@
 "use client";
 
+import { CountryToggle } from "@/components/CountryToggle";
 import { BarChart3, CheckSquare, Package2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -53,7 +54,8 @@ export function TopNav() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <div className="hidden h-8 items-center rounded-full border border-slate-400/10 bg-white/[0.04] px-3 text-xs font-medium text-muted sm:flex">
+          <CountryToggle />
+          <div className="hidden h-8 items-center rounded-full border border-slate-400/10 bg-white/[0.04] px-3 text-xs font-medium text-muted lg:flex">
             Operación COD
           </div>
           <div className="flex h-9 w-9 items-center justify-center rounded-full border border-primary/30 bg-primary/[0.15] text-xs font-semibold text-primary">

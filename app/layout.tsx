@@ -1,10 +1,11 @@
+import { CountryProvider } from "@/components/CountryProvider";
 import { TopNav } from "@/components/TopNav";
 import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Pakora CRM",
-  description: "CRM premium para operaciones COD en Colombia"
+  description: "CRM premium para operaciones COD en Colombia y México"
 };
 
 export default function RootLayout({
@@ -15,10 +16,12 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <div className="min-h-screen bg-transparent">
-          <TopNav />
-          <main className="mt-28 w-full px-8 py-6 md:mt-20">{children}</main>
-        </div>
+        <CountryProvider>
+          <div className="min-h-screen bg-transparent">
+            <TopNav />
+            <main className="mt-28 w-full px-8 py-6 md:mt-20">{children}</main>
+          </div>
+        </CountryProvider>
       </body>
     </html>
   );

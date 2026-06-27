@@ -6,16 +6,19 @@ import { CardSkeleton, ListSkeleton } from "@/components/Skeleton";
 import { TaskCard } from "@/components/TaskCard";
 import { TaskCompletionModal } from "@/components/TaskCompletionModal";
 import { TaskSlideOver } from "@/components/TaskSlideOver";
+import { useCountry } from "@/components/CountryProvider";
+import { countryLabel } from "@/lib/country";
 import { formatToday, isEnRutaOrder } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { omitTask } from "@/lib/task-actions";
 import type { TaskWithOrder } from "@/lib/types";
-import { AlertTriangle, CheckCircle2, PackageCheck, PhoneCall, Truck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Globe2, PackageCheck, PhoneCall, Truck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 interface Metrics {
   activeOrdersCO: number;
   activeOrdersMX: number;
+  activeOrdersTotal: number;
   confirmationTasks: number;
   enRuta: number;
   novedades: number;
@@ -24,12 +27,14 @@ interface Metrics {
 const initialMetrics: Metrics = {
   activeOrdersCO: 0,
   activeOrdersMX: 0,
+  activeOrdersTotal: 0,
   confirmationTasks: 0,
   enRuta: 0,
   novedades: 0
 };
 
 export default function DashboardPage() {
+  const { countryMode, concreteCountry } = useCountry();
   const [metrics, setMetrics] = useState<Metrics>(initialMetrics);
   const [tasks, setTasks] = useState<TaskWithOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,9 +47,44 @@ export default function DashboardPage() {
     try {
       setError(null);
 
+      let confirmationTasksQuery = supabase
+        .from("tasks")
+        .select(concreteCountry ? "id, orders!inner(pais)" : "id", {
+          count: "exact",
+          head: true
+        })
+        .eq("tipo", "llamar_confirmacion")
+        .eq("estado", "pendiente");
+
+      let novedadesQuery = supabase
+        .from("tasks")
+        .select(concreteCountry ? "id, orders!inner(pais)" : "id", {
+          count: "exact",
+          head: true
+        })
+        .eq("tipo", "presionar_entrega")
+        .eq("estado", "pendiente");
+
+      let pendingTasksQuery = supabase
+        .from("tasks")
+        .select(concreteCountry ? "*, orders!inner(*)" : "*, orders(*)")
+        .eq("estado", "pendiente")
+        .order("fecha_limite", { ascending: true, nullsFirst: false })
+        .limit(12);
+
+      let enRutaOrdersQuery = supabase.from("orders").select("id, estado_crm, estado_dropi, pais");
+
+      if (concreteCountry) {
+        confirmationTasksQuery = confirmationTasksQuery.eq("orders.pais", concreteCountry);
+        novedadesQuery = novedadesQuery.eq("orders.pais", concreteCountry);
+        pendingTasksQuery = pendingTasksQuery.eq("orders.pais", concreteCountry);
+        enRutaOrdersQuery = enRutaOrdersQuery.eq("pais", concreteCountry);
+      }
+
       const [
         activeOrdersCOResult,
         activeOrdersMXResult,
+        activeOrdersTotalResult,
         confirmationTasksResult,
         enRutaOrdersResult,
         novedadesResult,
@@ -60,28 +100,17 @@ export default function DashboardPage() {
           .select("id", { count: "exact", head: true })
           .eq("activo", true)
           .eq("pais", "MX"),
-        supabase
-          .from("tasks")
-          .select("id", { count: "exact", head: true })
-          .eq("tipo", "llamar_confirmacion")
-          .eq("estado", "pendiente"),
-        supabase.from("orders").select("id, estado_crm, estado_dropi"),
-        supabase
-          .from("tasks")
-          .select("id", { count: "exact", head: true })
-          .eq("tipo", "presionar_entrega")
-          .eq("estado", "pendiente"),
-        supabase
-          .from("tasks")
-          .select("*, orders(*)")
-          .eq("estado", "pendiente")
-          .order("fecha_limite", { ascending: true, nullsFirst: false })
-          .limit(12)
+        supabase.from("orders").select("id", { count: "exact", head: true }).eq("activo", true),
+        confirmationTasksQuery,
+        enRutaOrdersQuery,
+        novedadesQuery,
+        pendingTasksQuery
       ]);
 
       const firstError =
         activeOrdersCOResult.error ??
         activeOrdersMXResult.error ??
+        activeOrdersTotalResult.error ??
         confirmationTasksResult.error ??
         enRutaOrdersResult.error ??
         novedadesResult.error ??
@@ -92,6 +121,7 @@ export default function DashboardPage() {
       setMetrics({
         activeOrdersCO: activeOrdersCOResult.count ?? 0,
         activeOrdersMX: activeOrdersMXResult.count ?? 0,
+        activeOrdersTotal: activeOrdersTotalResult.count ?? 0,
         confirmationTasks: confirmationTasksResult.count ?? 0,
         enRuta: (enRutaOrdersResult.data ?? []).filter(isEnRutaOrder).length,
         novedades: novedadesResult.count ?? 0
@@ -102,7 +132,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [concreteCountry]);
 
   useEffect(() => {
     loadData();
@@ -117,6 +147,39 @@ export default function DashboardPage() {
       supabase.removeChannel(channel);
     };
   }, [loadData]);
+
+  const countryQuery = concreteCountry ? `pais=${concreteCountry}&` : "";
+  const countryOrdersQuery = concreteCountry ? `pais=${concreteCountry}&` : "";
+  const activeMetricCards =
+    countryMode === "todos"
+      ? [
+          {
+            title: "Activos Colombia",
+            value: metrics.activeOrdersCO,
+            icon: PackageCheck,
+            href: "/ordenes?pais=CO&filter=activas"
+          },
+          {
+            title: "Activos México",
+            value: metrics.activeOrdersMX,
+            icon: PackageCheck,
+            href: "/ordenes?pais=MX&filter=activas"
+          },
+          {
+            title: "Activos Totales",
+            value: metrics.activeOrdersTotal,
+            icon: Globe2,
+            href: "/ordenes?filter=activas"
+          }
+        ]
+      : [
+          {
+            title: `Pedidos Activos ${countryLabel(countryMode)}`,
+            value: countryMode === "CO" ? metrics.activeOrdersCO : metrics.activeOrdersMX,
+            icon: PackageCheck,
+            href: `/ordenes?${countryOrdersQuery}filter=activas`
+          }
+        ];
 
   async function handleOmit(task: TaskWithOrder) {
     setBusyTaskId(task.id);
@@ -135,7 +198,9 @@ export default function DashboardPage() {
       <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-sm font-medium text-primary">{formatToday()}</p>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-50 sm:text-3xl">Dashboard</h1>
+          <h1 className="mt-2 text-2xl font-semibold text-slate-50 sm:text-3xl">
+            Dashboard {countryLabel(countryMode)}
+          </h1>
         </div>
         <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-white/[0.04] px-3 py-2 text-sm text-muted backdrop-blur-xl">
           <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-primary" />
@@ -160,40 +225,36 @@ export default function DashboardPage() {
           </>
         ) : (
           <>
-            <MetricCard
-              title="Pedidos Activos Colombia"
-              value={metrics.activeOrdersCO}
-              icon={PackageCheck}
-              accent="primary"
-              href="/ordenes?pais=CO&filter=activas"
-            />
-            <MetricCard
-              title="Pedidos Activos México"
-              value={metrics.activeOrdersMX}
-              icon={PackageCheck}
-              accent="primary"
-              href="/ordenes?pais=MX&filter=activas"
-            />
+            {activeMetricCards.map((card) => (
+              <MetricCard
+                key={card.title}
+                title={card.title}
+                value={card.value}
+                icon={card.icon}
+                accent="primary"
+                href={card.href}
+              />
+            ))}
             <MetricCard
               title="Por Confirmar"
               value={metrics.confirmationTasks}
               icon={PhoneCall}
               accent="warning"
-              href="/tareas?tipo=llamar_confirmacion&estado=pendiente"
+              href={`/tareas?${countryQuery}tipo=llamar_confirmacion&estado=pendiente`}
             />
             <MetricCard
               title="En Ruta"
               value={metrics.enRuta}
               icon={Truck}
               accent="neutral"
-              href="/ordenes?filter=en_ruta"
+              href={`/ordenes?${countryOrdersQuery}filter=en_ruta`}
             />
             <MetricCard
               title="Novedades"
               value={metrics.novedades}
               icon={AlertTriangle}
               accent="danger"
-              href="/tareas?tipo=presionar_entrega&estado=pendiente"
+              href={`/tareas?${countryQuery}tipo=presionar_entrega&estado=pendiente`}
             />
           </>
         )}

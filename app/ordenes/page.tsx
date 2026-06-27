@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/Badge";
 import { CountryBadge } from "@/components/CountryBadge";
+import { useCountry } from "@/components/CountryProvider";
 import { EmptyState } from "@/components/EmptyState";
 import { ListSkeleton } from "@/components/Skeleton";
 import {
@@ -12,7 +13,7 @@ import {
   orderNumber
 } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
-import type { CountryCode, Order, Task } from "@/lib/types";
+import type { Order, Task } from "@/lib/types";
 import { Boxes, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,8 +28,6 @@ type FilterKey =
   | "entregadas"
   | "canceladas";
 
-type CountryFilter = "todos" | CountryCode;
-
 const filters: Array<{ key: FilterKey; label: string }> = [
   { key: "todas", label: "Todas" },
   { key: "activas", label: "Activas" },
@@ -39,19 +38,13 @@ const filters: Array<{ key: FilterKey; label: string }> = [
   { key: "canceladas", label: "Canceladas" }
 ];
 
-const countryFilters: Array<{ key: CountryFilter; label: string }> = [
-  { key: "CO", label: "Colombia" },
-  { key: "MX", label: "México" },
-  { key: "todos", label: "Todos" }
-];
-
 export default function OrdersPage() {
   const router = useRouter();
+  const { concreteCountry } = useCountry();
   const [orders, setOrders] = useState<Order[]>([]);
   const [pendingTaskCounts, setPendingTaskCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("todas");
-  const [countryFilter, setCountryFilter] = useState<CountryFilter>("todos");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,8 +54,8 @@ export default function OrdersPage() {
 
       let ordersQuery = supabase.from("orders").select("*").order("fecha", { ascending: false });
 
-      if (countryFilter !== "todos") {
-        ordersQuery = ordersQuery.eq("pais", countryFilter);
+      if (concreteCountry) {
+        ordersQuery = ordersQuery.eq("pais", concreteCountry);
       }
 
       const [ordersResult, tasksResult] = await Promise.all([
@@ -87,7 +80,7 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [countryFilter]);
+  }, [concreteCountry]);
 
   useEffect(() => {
     loadData();
@@ -106,14 +99,9 @@ export default function OrdersPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const filterParam = params.get("filter");
-    const countryParam = params.get("pais");
 
     if (filters.some((item) => item.key === filterParam)) {
       setFilter(filterParam as FilterKey);
-    }
-
-    if (countryFilters.some((item) => item.key === countryParam)) {
-      setCountryFilter(countryParam as CountryFilter);
     }
   }, []);
 
@@ -170,27 +158,6 @@ export default function OrdersPage() {
             className="h-11 w-full rounded-2xl border border-border bg-white/[0.04] px-10 text-sm text-slate-50 outline-none backdrop-blur-xl transition placeholder:text-muted focus:border-primary/50"
           />
         </div>
-      </section>
-
-      <section className="flex gap-2 overflow-x-auto pb-1">
-        {countryFilters.map((item) => {
-          const active = item.key === countryFilter;
-
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setCountryFilter(item.key)}
-              className={`shrink-0 rounded-full border px-3 py-2 text-sm font-medium transition ${
-                active
-                  ? "border-primary/30 bg-primary/[0.15] text-primary"
-                  : "border-border bg-white/[0.04] text-muted hover:border-primary/30 hover:text-slate-50"
-              }`}
-            >
-              {item.label}
-            </button>
-          );
-        })}
       </section>
 
       <section className="flex gap-2 overflow-x-auto pb-1">

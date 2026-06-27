@@ -2,6 +2,8 @@ export type RiskLevel = "sin_datos" | "bajo" | "medio" | "alto";
 
 export type CountryCode = "CO" | "MX";
 
+export type CountryMode = "todos" | CountryCode;
+
 export type OrderCrmStatus =
   | "nuevo"
   | "contactado"
