@@ -26,6 +26,7 @@ import {
   CircleDollarSign,
   Clock3,
   CreditCard,
+  Download,
   Landmark,
   Package2,
   Receipt,
@@ -51,6 +52,110 @@ const presets: Array<{ value: FinanceDatePreset; label: string }> = [
   { value: "30d", label: "Últimos 30 días" },
   { value: "7d", label: "Últimos 7 días" }
 ];
+
+const csvColumns: Array<keyof Pick<
+  Order,
+  | "numero_orden"
+  | "fecha"
+  | "pais"
+  | "nombre"
+  | "apellido"
+  | "telefono"
+  | "ciudad"
+  | "departamento"
+  | "transportadora"
+  | "nombre_producto"
+  | "total"
+  | "costo_producto"
+  | "costo_envio"
+  | "costo_devolucion"
+  | "comision_cod"
+  | "valor_recaudado"
+  | "valor_liquidado"
+  | "estado_dropi"
+  | "estado_crm"
+  | "estado_recaudo"
+  | "estado_liquidacion"
+  | "fecha_entrega_real"
+  | "fecha_recaudo"
+  | "fecha_liquidacion"
+>> = [
+  "numero_orden",
+  "fecha",
+  "pais",
+  "nombre",
+  "apellido",
+  "telefono",
+  "ciudad",
+  "departamento",
+  "transportadora",
+  "nombre_producto",
+  "total",
+  "costo_producto",
+  "costo_envio",
+  "costo_devolucion",
+  "comision_cod",
+  "valor_recaudado",
+  "valor_liquidado",
+  "estado_dropi",
+  "estado_crm",
+  "estado_recaudo",
+  "estado_liquidacion",
+  "fecha_entrega_real",
+  "fecha_recaudo",
+  "fecha_liquidacion"
+];
+
+function financeOrderDate(order: Order) {
+  return order.fecha ?? order.created_at ?? null;
+}
+
+function financeTimestamp(value?: string | null) {
+  if (!value) return 0;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function orderMatchesFinanceRange(order: Order, range: ReturnType<typeof defaultFinanceRange>) {
+  if (range.preset === "all" || (!range.from && !range.to)) return true;
+
+  const date = financeTimestamp(financeOrderDate(order));
+  if (!date) return false;
+
+  const from = range.from ? new Date(`${range.from}T00:00:00`).getTime() : 0;
+  const to = range.to ? new Date(`${range.to}T23:59:59`).getTime() : Infinity;
+
+  return date >= from && date <= to;
+}
+
+function csvValue(value: Order[keyof Order]) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "boolean") return value ? "true" : "false";
+
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
+
+function buildFinanceCsv(orders: Order[]) {
+  const header = csvColumns.join(",");
+  const rows = orders.map((order) =>
+    csvColumns.map((column) => csvValue(order[column])).join(",")
+  );
+
+  return [header, ...rows].join("\n");
+}
+
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob([`\uFEFF${content}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
 
 export default function FinancePage() {
   const { countryMode, concreteCountry } = useCountry();
@@ -113,6 +218,10 @@ export default function FinancePage() {
     () => buildFinanceDashboard(data.orders, data.history, range, concreteCountry),
     [data.orders, data.history, range, concreteCountry]
   );
+  const exportOrders = useMemo(
+    () => data.orders.filter((order) => orderMatchesFinanceRange(order, range)),
+    [data.orders, range]
+  );
 
   function handlePreset(preset: FinanceDatePreset) {
     setRange(rangeForPreset(preset));
@@ -124,6 +233,14 @@ export default function FinancePage() {
       preset: "custom",
       [key]: value
     }));
+  }
+
+  function handleExportCsv() {
+    const filenameDate = new Date().toISOString().slice(0, 10);
+    const filenameCountry = countryMode === "todos" ? "todos" : countryMode;
+    const csv = buildFinanceCsv(exportOrders);
+
+    downloadCsv(csv, `pakora-finanzas-${filenameCountry}-${filenameDate}.csv`);
   }
 
   return (
@@ -170,6 +287,15 @@ export default function FinancePage() {
               className="h-10 rounded-2xl border border-border bg-white/[0.07] px-3 text-sm text-slate-50 outline-none backdrop-blur-xl focus:border-primary/50"
             />
           </div>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={loading || exportOrders.length === 0}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary/[0.15] px-4 text-sm font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:bg-primary/[0.22] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download aria-hidden="true" className="h-4 w-4" />
+            Exportar CSV
+          </button>
         </div>
       </section>
 

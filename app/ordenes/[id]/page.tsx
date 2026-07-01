@@ -16,7 +16,9 @@ import {
 } from "@/lib/order-intelligence";
 import {
   formatCurrency,
+  formatDate,
   formatDateTime,
+  formatMoney,
   formatPhone,
   fullName,
   orderNumber
@@ -27,6 +29,7 @@ import type { Order, OrderComment, StatusHistory, TaskWithOrder } from "@/lib/ty
 import {
   ArrowLeft,
   ClipboardList,
+  History,
   Loader2,
   MapPin,
   MessageSquare,
@@ -36,6 +39,7 @@ import {
   Truck,
   User
 } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -48,6 +52,8 @@ export default function OrderDetailPage() {
   const [tasks, setTasks] = useState<TaskWithOrder[]>([]);
   const [comments, setComments] = useState<OrderComment[]>([]);
   const [history, setHistory] = useState<StatusHistory[]>([]);
+  const [customerHistory, setCustomerHistory] = useState<Order[]>([]);
+  const [customerHistoryTotal, setCustomerHistoryTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskWithOrder | null>(null);
@@ -96,6 +102,20 @@ export default function OrderDetailPage() {
       if (firstError) throw firstError;
 
       const loadedOrder = orderResult.data as Order;
+      const phone = loadedOrder.telefono?.trim();
+      const customerHistoryResult = phone
+        ? await supabase
+            .from("orders")
+            .select("*", { count: "exact" })
+            .eq("telefono", phone)
+            .neq("id", loadedOrder.id)
+            .order("fecha", { ascending: false, nullsFirst: false })
+            .order("created_at", { ascending: false, nullsFirst: false })
+            .limit(10)
+        : { data: [], error: null, count: 0 };
+
+      if (customerHistoryResult.error) throw customerHistoryResult.error;
+
       setOrder(loadedOrder);
       setTasks(
         ((tasksResult.data ?? []) as TaskWithOrder[]).map((task) => ({
@@ -105,6 +125,8 @@ export default function OrderDetailPage() {
       );
       setComments((commentsResult.data ?? []) as OrderComment[]);
       setHistory((historyResult.data ?? []) as StatusHistory[]);
+      setCustomerHistory((customerHistoryResult.data ?? []) as Order[]);
+      setCustomerHistoryTotal(customerHistoryResult.count ?? 0);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "No se pudo cargar la orden");
     } finally {
@@ -288,6 +310,8 @@ export default function OrderDetailPage() {
               <RiskStat label="Devueltos" value={order.pedidos_devueltos_cliente ?? 0} />
             </div>
           </InfoCard>
+
+          <CustomerHistoryCard orders={customerHistory} total={customerHistoryTotal} />
         </div>
 
         <div className="space-y-6">
@@ -471,6 +495,65 @@ function DropiSignalSummary({ signal }: { signal: LogisticsSignal }) {
       </div>
     </div>
   );
+}
+
+function CustomerHistoryCard({ orders, total }: { orders: Order[]; total: number }) {
+  const moreCount = Math.max(0, total - orders.length);
+  const countLabel = `${total} ${total === 1 ? "pedido" : "pedidos"}`;
+
+  return (
+    <GlassCard className="p-5" hover={false} variant="panel">
+      <div className="flex items-center justify-between gap-3">
+        <SectionTitle icon={History} title="Historial del cliente" />
+        <span className="shrink-0 rounded-full border border-border bg-white/[0.07] px-2.5 py-1 text-xs font-medium text-muted">
+          {countLabel}
+        </span>
+      </div>
+
+      {orders.length ? (
+        <div className="mt-4 space-y-3">
+          {orders.map((historyOrder) => (
+            <Link
+              key={historyOrder.id}
+              href={`/ordenes/${historyOrder.id}`}
+              className="block rounded-2xl border border-border bg-white/[0.052] p-3 transition hover:border-sky-400/30 hover:bg-white/[0.08]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-primary">
+                    {customerHistoryOrderLabel(historyOrder)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">{formatDate(historyOrder.fecha)}</p>
+                </div>
+                <Badge kind="crmStatus" value={historyOrder.estado_crm} />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="text-muted">{historyOrder.ciudad || "Sin ciudad"}</span>
+                <span className="font-semibold text-slate-50">
+                  {formatMoney(historyOrder.total, historyOrder.pais)}
+                </span>
+              </div>
+            </Link>
+          ))}
+          {moreCount > 0 ? (
+            <p className="rounded-2xl border border-border bg-white/[0.045] px-3 py-2 text-sm text-muted">
+              y {moreCount} más
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-2xl border border-border bg-white/[0.045] px-4 py-5 text-sm text-muted">
+          Primer pedido de este cliente
+        </p>
+      )}
+    </GlassCard>
+  );
+}
+
+function customerHistoryOrderLabel(order: Pick<Order, "numero_orden" | "id_orden_dropi">) {
+  if (order.numero_orden) return order.numero_orden;
+  if (order.id_orden_dropi) return `Dropi #${order.id_orden_dropi}`;
+  return "Sin orden";
 }
 
 function RiskStat({ label, value }: { label: string; value: number }) {
