@@ -244,6 +244,13 @@ export function NotificationBell() {
             </header>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <pre className="text-xs text-white p-2">
+                loading: {String(loading)} |
+                error: {queryError ?? "none"} |
+                count: {notifications.length} |
+                visible: {visibleNotifications.length}
+              </pre>
+
               {loading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, index) => (
