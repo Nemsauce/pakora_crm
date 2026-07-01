@@ -210,47 +210,42 @@ export function NotificationBell() {
             className="absolute inset-0 z-0 bg-[#020817]/50 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <aside className="absolute right-0 top-0 z-10 flex h-full w-full max-w-[28rem] flex-col border-l border-slate-400/10 bg-[#0F172A]/95 shadow-[0_0_40px_rgba(2,8,23,0.45)] backdrop-blur-xl">
-            <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-              <div>
-                <h2 className="text-base font-semibold text-slate-50">Notificaciones</h2>
-                <p className="mt-1 text-xs text-muted">
-                  {unreadCount ? `${unreadCount} sin leer` : "Todo al día"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={markAllRead}
-                  disabled={busy || unreadCount === 0}
-                  className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-white/[0.06] px-3 text-xs font-medium text-muted transition hover:border-primary/30 hover:text-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {busy ? (
-                    <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <CheckCheck aria-hidden="true" className="h-3.5 w-3.5" />
-                  )}
-                  Marcar todas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-white/[0.06] text-muted transition hover:border-primary/30 hover:text-slate-50"
-                  aria-label="Cerrar"
-                >
-                  <X aria-hidden="true" className="h-4 w-4" />
-                </button>
+          <aside className="absolute right-0 top-0 z-10 flex h-screen w-full max-w-[28rem] flex-col border-l border-slate-400/10 bg-[#0F172A]/95 shadow-[0_0_40px_rgba(2,8,23,0.45)] backdrop-blur-xl">
+            <header className="shrink-0 border-b border-border px-5 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-50">Notificaciones</h2>
+                  <p className="mt-1 text-xs text-muted">
+                    {unreadCount ? `${unreadCount} sin leer` : "Todo al día"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={markAllRead}
+                    disabled={busy || unreadCount === 0}
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-white/[0.06] px-3 text-xs font-medium text-muted transition hover:border-primary/30 hover:text-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CheckCheck aria-hidden="true" className="h-3.5 w-3.5" />
+                    )}
+                    Marcar todas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-white/[0.06] text-muted transition hover:border-primary/30 hover:text-slate-50"
+                    aria-label="Cerrar"
+                  >
+                    <X aria-hidden="true" className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </header>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-              <pre className="text-xs text-white p-2">
-                loading: {String(loading)} |
-                error: {queryError ?? "none"} |
-                count: {notifications.length} |
-                visible: {visibleNotifications.length}
-              </pre>
-
               {loading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, index) => (
