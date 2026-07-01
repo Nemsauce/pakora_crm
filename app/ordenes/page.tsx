@@ -261,7 +261,7 @@ export default function OrdersPage() {
                   <th className="px-4 py-3">Cliente</th>
                   <th className="px-4 py-3">Producto</th>
                   <th className="px-4 py-3">Ciudad</th>
-                  <th className="px-4 py-3">Envio</th>
+                  <th className="px-4 py-3">Transportadora</th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3">Señal Dropi</th>
                   <th className="px-4 py-3">Acción</th>
@@ -272,6 +272,8 @@ export default function OrdersPage() {
               <tbody className="divide-y divide-border">
                 {filteredOrders.map((order) => {
                   const intelligence = intelligenceByOrderId.get(order.id);
+                  const actionLabel = visibleActionLabel(intelligence);
+                  const valueAtRisk = intelligence?.valueAtRisk ?? 0;
 
                   return (
                     <tr
@@ -317,12 +319,12 @@ export default function OrdersPage() {
                         <IntelligencePill intelligence={intelligence} />
                       </td>
                       <td className="max-w-[12rem] px-4 py-4 align-top text-sm">
-                        <p className="font-medium text-slate-100">
-                          {intelligence?.logistics.suggestedAction.label ?? "Ver orden"}
-                        </p>
-                        <p className="mt-1 text-xs text-muted">
-                          {intelligence?.valueAtRisk ? formatCurrency(intelligence.valueAtRisk) : "Sin dinero en riesgo"}
-                        </p>
+                        {actionLabel ? (
+                          <p className="font-medium text-slate-100">{actionLabel}</p>
+                        ) : null}
+                        {valueAtRisk ? (
+                          <p className="mt-1 text-xs text-muted">{formatCurrency(valueAtRisk)}</p>
+                        ) : null}
                       </td>
                       <td className="px-4 py-4 align-top">
                         <Badge kind="risk" value={order.nivel_riesgo} />
@@ -340,6 +342,8 @@ export default function OrdersPage() {
           <section className="space-y-3 md:hidden">
             {filteredOrders.map((order) => {
               const intelligence = intelligenceByOrderId.get(order.id);
+              const actionLabel = visibleActionLabel(intelligence);
+              const valueAtRisk = intelligence?.valueAtRisk ?? 0;
 
               return (
                 <Link
@@ -378,10 +382,13 @@ export default function OrdersPage() {
                       {order.departamento ? `, ${order.departamento}` : ""}
                     </span>
                     <span>{order.transportadora || "Sin transportadora"}</span>
-                    <span>
-                      {intelligence?.logistics.suggestedAction.label ?? "Ver orden"} ·{" "}
-                      {intelligence?.valueAtRisk ? formatCurrency(intelligence.valueAtRisk) : "sin dinero en riesgo"}
-                    </span>
+                    {actionLabel || valueAtRisk ? (
+                      <span>
+                        {[actionLabel, valueAtRisk ? formatCurrency(valueAtRisk) : null]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    ) : null}
                   </div>
                 </Link>
               );
@@ -397,6 +404,12 @@ export default function OrdersPage() {
       )}
     </div>
   );
+}
+
+function visibleActionLabel(intelligence?: OrderIntelligence) {
+  const label = intelligence?.logistics.suggestedAction.label;
+  if (!label || label === "Ver orden") return null;
+  return label;
 }
 
 function IntelligencePill({ intelligence }: { intelligence?: OrderIntelligence }) {

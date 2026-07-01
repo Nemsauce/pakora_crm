@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/Badge";
+import { CountryBadge } from "@/components/CountryBadge";
 import { glassClass } from "@/components/Glass";
 import { formatDateTime, formatPhone, fullName, orderNumber, orderNumberClass } from "@/lib/format";
 import type { TaskWithOrder } from "@/lib/types";
@@ -32,6 +33,10 @@ export function TaskCard({
   )
     ? ((task as TaskWithOrder & { priorityReasons?: string[] }).priorityReasons ?? [])
     : [];
+  const visiblePriorityReasons =
+    task.tipo === "llamar_confirmacion"
+      ? priorityReasons.filter((reason) => reason !== "Sin guía")
+      : priorityReasons;
   const overdue = Boolean((task as TaskWithOrder & { overdue?: boolean }).overdue);
 
   function handleOpen() {
@@ -72,13 +77,14 @@ export function TaskCard({
                 {orderNumber(order)}
               </span>
             )}
+            {order?.pais ? <CountryBadge country={order.pais} /> : null}
             <Badge kind="taskType" value={task.tipo} />
             {task.intento_numero ? (
               <span className="rounded-full border border-border bg-white/[0.07] px-2 py-1 text-xs font-medium text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
                 Intento {task.intento_numero}
               </span>
             ) : null}
-            {priorityReasons.slice(0, 3).map((reason) => (
+            {visiblePriorityReasons.slice(0, 3).map((reason) => (
               <span
                 key={reason}
                 className={`rounded-full border px-2 py-1 text-xs font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
