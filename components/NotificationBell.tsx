@@ -28,44 +28,59 @@ function relativeTime(value?: string | null) {
 
 export function NotificationBell() {
   const router = useRouter();
-  const { concreteCountry } = useCountry();
+  const { countryMode } = useCountry();
+  const activeCountry = countryMode === "CO" || countryMode === "MX" ? countryMode : null;
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [queryError, setQueryError] = useState<string | null>(null);
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);
+    setQueryError(null);
 
-    let listQuery = supabase
-      .from("notifications")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
+    try {
+      let listQuery = supabase
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-    let countQuery = supabase
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("leida", false);
+      let countQuery = supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("leida", false);
 
-    if (concreteCountry) {
-      listQuery = listQuery.eq("pais", concreteCountry);
-      countQuery = countQuery.eq("pais", concreteCountry);
+      if (activeCountry) {
+        listQuery = listQuery.eq("pais", activeCountry);
+        countQuery = countQuery.eq("pais", activeCountry);
+      }
+
+      const [listResult, countResult] = await Promise.all([listQuery, countQuery]);
+
+      if (listResult.error) {
+        setNotifications([]);
+        setQueryError(listResult.error.message);
+      } else {
+        setNotifications((listResult.data ?? []) as AppNotification[]);
+      }
+
+      if (countResult.error) {
+        setUnreadCount(0);
+        setQueryError((current) => current ?? countResult.error.message);
+      } else {
+        setUnreadCount(countResult.count ?? 0);
+      }
+    } catch (error) {
+      setNotifications([]);
+      setUnreadCount(0);
+      setQueryError(error instanceof Error ? error.message : "No se pudieron cargar las notificaciones.");
+    } finally {
+      setLoading(false);
     }
-
-    const [listResult, countResult] = await Promise.all([listQuery, countQuery]);
-
-    if (!listResult.error) {
-      setNotifications((listResult.data ?? []) as AppNotification[]);
-    }
-
-    if (!countResult.error) {
-      setUnreadCount(countResult.count ?? 0);
-    }
-
-    setLoading(false);
-  }, [concreteCountry]);
+  }, [activeCountry]);
 
   useEffect(() => {
     loadNotifications();
@@ -79,6 +94,12 @@ export function NotificationBell() {
       supabase.removeChannel(channel);
     };
   }, [loadNotifications]);
+
+  useEffect(() => {
+    if (open) {
+      loadNotifications();
+    }
+  }, [loadNotifications, open]);
 
   const unreadLabel = useMemo(() => {
     if (unreadCount > 99) return "99+";
@@ -107,8 +128,8 @@ export function NotificationBell() {
       .update({ leida: true })
       .eq("leida", false);
 
-    if (concreteCountry) {
-      query = query.eq("pais", concreteCountry);
+    if (activeCountry) {
+      query = query.eq("pais", activeCountry);
     }
 
     await query;
@@ -182,6 +203,10 @@ export function NotificationBell() {
                       className="h-24 animate-pulse rounded-2xl border border-border bg-white/[0.05]"
                     />
                   ))}
+                </div>
+              ) : queryError ? (
+                <div className="rounded-2xl border border-danger/30 bg-danger/[0.12] p-4 text-sm leading-6 text-danger">
+                  No se pudieron cargar las notificaciones: {queryError}
                 </div>
               ) : notifications.length ? (
                 <div className="space-y-3">
