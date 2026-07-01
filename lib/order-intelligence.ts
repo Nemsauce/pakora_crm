@@ -237,24 +237,48 @@ export function classifyLogisticsStage(value?: string | null, order?: Pick<Order
   if (status.includes("CANCEL") || status.includes("RECHAZ")) return "cancelado";
   if (status.includes("DEVOL")) return "devolucion";
   if (status.includes("RECLAME")) return "reclame_oficina";
+  if (status.includes("RECEPCION CENTRO DE ENTREGA")) return "reclame_oficina";
   if (status.includes("NOVED") && status.includes("SOLUCION")) return "novedad_solucionada";
   if (status.includes("NOVED")) return "novedad_activa";
-  if (order?.activo && !order.guia_envio) return "sin_guia";
   if (status.includes("GUIA")) return "guia";
-  if (status.includes("BODEGA") || status.includes("PREPARADO") || status.includes("RECOGIDO")) return "bodega";
+  if (
+    status.includes("BODEGA") ||
+    status.includes("PREPARADO") ||
+    status.includes("RECOGIDO") ||
+    status.includes("RECEPCION") ||
+    status.includes("ACEPTACION DE ENVIOS") ||
+    status.includes("RECOLECCION ATENDIDA")
+  ) {
+    return "bodega";
+  }
   if (
     status.includes("TRANSPORTE") ||
+    status.includes("TRANSITO") ||
     status.includes("CAMINO") ||
     status.includes("DESPACH") ||
     status.includes("ADMITIDA") ||
     status.includes("TERMINAL") ||
-    status.includes("SIN MOV")
+    status.includes("SIN MOV") ||
+    status.includes("SALIDA DE CENTRO DE DISTRIBUCION") ||
+    status.includes("EMBARQUE DE CARGA") ||
+    status.includes("DESEMBARQUE DE CARGA") ||
+    status.includes("DESEMBARCADA") ||
+    status.includes("TRANSBORDADA") ||
+    status.includes("SALIDA DE INSTALACIONES CIRCUITO")
   ) {
     return "transito";
   }
-  if (status.includes("REPARTO") || status.includes("RUTA") || status.includes("OFICINA")) {
+  if (
+    status.includes("REPARTO") ||
+    status.includes("RUTA") ||
+    status.includes("OFICINA") ||
+    status.includes("ASIGNADO A MENSAJERO") ||
+    status.includes("LLEGANDO A INSTALACION") ||
+    status.includes("LISTO PARA ENTREGAR")
+  ) {
     return "ultima_milla";
   }
+  if (order?.activo && !order.guia_envio) return "sin_guia";
 
   return "sin_datos";
 }

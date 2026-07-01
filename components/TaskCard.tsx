@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/Badge";
 import { glassClass } from "@/components/Glass";
-import { formatDateTime, formatPhone, fullName, orderNumber } from "@/lib/format";
+import { formatDateTime, formatPhone, fullName, orderNumber, orderNumberClass } from "@/lib/format";
 import type { TaskWithOrder } from "@/lib/types";
 import { Ban, CalendarClock, Check, Phone } from "lucide-react";
 import Link from "next/link";
@@ -63,12 +63,14 @@ export function TaskCard({
             {showOrderLink && !interactive ? (
               <Link
                 href={`/ordenes/${task.order_id}`}
-                className="text-sm font-semibold text-primary transition hover:text-primary/80"
+                className={`text-sm font-semibold transition hover:text-primary/80 ${orderNumberClass(order)}`}
               >
                 {orderNumber(order)}
               </Link>
             ) : (
-              <span className="text-sm font-semibold text-primary">{orderNumber(order)}</span>
+              <span className={`text-sm font-semibold ${orderNumberClass(order)}`}>
+                {orderNumber(order)}
+              </span>
             )}
             <Badge kind="taskType" value={task.tipo} />
             {task.intento_numero ? (

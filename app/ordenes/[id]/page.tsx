@@ -21,7 +21,8 @@ import {
   formatMoney,
   formatPhone,
   fullName,
-  orderNumber
+  orderNumber,
+  orderNumberClass
 } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { omitTask } from "@/lib/task-actions";
@@ -253,7 +254,9 @@ export default function OrderDetailPage() {
       <GlassCard className="p-5 sm:p-6" hover={false} variant="panel">
         <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-primary">{orderNumber(order)}</p>
+            <p className={`text-sm font-semibold ${orderNumberClass(order)}`}>
+              {orderNumber(order)}
+            </p>
             <h1 className="mt-2 text-2xl font-semibold text-slate-50 sm:text-3xl">
               {fullName(order)}
             </h1>
@@ -520,8 +523,8 @@ function CustomerHistoryCard({ orders, total }: { orders: Order[]; total: number
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-primary">
-                    {customerHistoryOrderLabel(historyOrder)}
+                  <p className={`truncate text-sm font-semibold ${orderNumberClass(historyOrder)}`}>
+                    {orderNumber(historyOrder)}
                   </p>
                   <p className="mt-1 text-xs text-muted">{formatDate(historyOrder.fecha)}</p>
                 </div>
@@ -548,12 +551,6 @@ function CustomerHistoryCard({ orders, total }: { orders: Order[]; total: number
       )}
     </GlassCard>
   );
-}
-
-function customerHistoryOrderLabel(order: Pick<Order, "numero_orden" | "id_orden_dropi">) {
-  if (order.numero_orden) return order.numero_orden;
-  if (order.id_orden_dropi) return `Dropi #${order.id_orden_dropi}`;
-  return "Sin orden";
 }
 
 function RiskStat({ label, value }: { label: string; value: number }) {

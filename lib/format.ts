@@ -116,8 +116,18 @@ export function fullName(order?: Pick<Order, "nombre" | "apellido"> | null) {
   return name || "Cliente sin nombre";
 }
 
-export function orderNumber(order?: Pick<Order, "numero_orden"> | null) {
-  return order?.numero_orden || "Sin orden";
+export function hasOrderNumber(order?: Pick<Order, "numero_orden"> | null) {
+  return Boolean(order?.numero_orden);
+}
+
+export function orderNumber(order?: Pick<Order, "numero_orden" | "id_orden_dropi"> | null) {
+  if (order?.numero_orden) return order.numero_orden;
+  if (order?.id_orden_dropi) return `Dropi #${order.id_orden_dropi}`;
+  return "Dropi #N/D";
+}
+
+export function orderNumberClass(order?: Pick<Order, "numero_orden"> | null) {
+  return hasOrderNumber(order) ? "text-primary" : "text-muted";
 }
 
 export function labelFromMap(value: string | null | undefined, map: Record<string, string>) {

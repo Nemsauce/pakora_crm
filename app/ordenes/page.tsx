@@ -16,7 +16,8 @@ import {
   fullName,
   isEnRutaOrder,
   normalize,
-  orderNumber
+  orderNumber,
+  orderNumberClass
 } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import type { Order, StatusHistory, TaskWithOrder } from "@/lib/types";
@@ -286,7 +287,7 @@ export default function OrdersPage() {
                       <td className="px-4 py-4 align-top">
                         <Link
                           href={`/ordenes/${order.id}`}
-                          className="font-semibold text-primary hover:text-primary/80"
+                          className={`font-semibold transition hover:text-primary/80 ${orderNumberClass(order)}`}
                           onClick={(event) => event.stopPropagation()}
                         >
                           {orderNumber(order)}
@@ -348,7 +349,9 @@ export default function OrdersPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-primary">{orderNumber(order)}</p>
+                      <p className={`text-sm font-semibold ${orderNumberClass(order)}`}>
+                        {orderNumber(order)}
+                      </p>
                       <h2 className="mt-2 truncate text-sm font-semibold text-slate-50">
                         {fullName(order)}
                       </h2>

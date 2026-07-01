@@ -30,7 +30,7 @@ import {
   type LogisticsPipelineStage,
   type LogisticsRiskAlert
 } from "@/lib/order-intelligence";
-import { formatDateTime, formatToday } from "@/lib/format";
+import { formatDateTime, formatToday, orderNumber, orderNumberClass } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { omitTask } from "@/lib/task-actions";
 import type { Order, OrderComment, StatusHistory, TaskWithOrder } from "@/lib/types";
@@ -500,8 +500,8 @@ function ActionInbox({
               <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-primary">
-                      {item.order.numero_orden || "Sin orden"}
+                    <span className={`text-sm font-semibold ${orderNumberClass(item.order)}`}>
+                      {orderNumber(item.order)}
                     </span>
                     <span
                       className={`rounded-full border px-2.5 py-1 text-xs font-medium ${severityClasses(item.severity)}`}

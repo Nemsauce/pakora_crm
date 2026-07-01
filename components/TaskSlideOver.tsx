@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/Badge";
 import { glassClass } from "@/components/Glass";
-import { formatDateTime, formatPhone, fullName, orderNumber } from "@/lib/format";
+import { formatDateTime, formatPhone, fullName, orderNumber, orderNumberClass } from "@/lib/format";
 import type { TaskWithOrder } from "@/lib/types";
 import { Ban, CalendarClock, Check, ExternalLink, Phone, X } from "lucide-react";
 import Link from "next/link";
@@ -59,7 +59,9 @@ export function TaskSlideOver({
         <header className="border-b border-slate-400/10 px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-primary">{orderNumber(order)}</p>
+              <p className={`text-sm font-semibold ${orderNumberClass(order)}`}>
+                {orderNumber(order)}
+              </p>
               <h2 className="mt-2 truncate text-xl font-semibold text-slate-50">
                 {fullName(order)}
               </h2>
