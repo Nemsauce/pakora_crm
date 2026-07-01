@@ -8,6 +8,32 @@ import { Bell, CheckCheck, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+type NotificationRow = Partial<Record<keyof AppNotification, unknown>>;
+
+function asString(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNullableString(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function toAppNotification(row: NotificationRow): AppNotification | null {
+  const id = asNullableString(row.id);
+  if (!id) return null;
+
+  return {
+    id,
+    order_id: asNullableString(row.order_id),
+    tipo: asString(row.tipo, "estado_dropi"),
+    titulo: asString(row.titulo, "Notificación"),
+    mensaje: asString(row.mensaje, "Sin detalle"),
+    leida: typeof row.leida === "boolean" ? row.leida : false,
+    pais: asNullableString(row.pais),
+    created_at: asNullableString(row.created_at)
+  };
+}
+
 function relativeTime(value?: string | null) {
   if (!value) return "Sin fecha";
 
@@ -33,11 +59,27 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
 
-  const loadNotifications = useCallback(async () => {
+  const loadUnreadCount = useCallback(async () => {
+    let countQuery = supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("leida", false);
+
+    if (activeCountry) {
+      countQuery = countQuery.eq("pais", activeCountry);
+    }
+
+    const countResult = await countQuery;
+    if (!countResult.error) {
+      setUnreadCount(countResult.count ?? 0);
+    }
+  }, [activeCountry]);
+
+  const loadNotificationList = useCallback(async () => {
     setLoading(true);
     setQueryError(null);
 
@@ -48,34 +90,25 @@ export function NotificationBell() {
         .order("created_at", { ascending: false })
         .limit(50);
 
-      let countQuery = supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("leida", false);
-
       if (activeCountry) {
         listQuery = listQuery.eq("pais", activeCountry);
-        countQuery = countQuery.eq("pais", activeCountry);
       }
 
-      const [listResult, countResult] = await Promise.all([listQuery, countQuery]);
+      const listResult = await listQuery;
 
       if (listResult.error) {
         setNotifications([]);
         setQueryError(listResult.error.message);
       } else {
-        setNotifications((listResult.data ?? []) as AppNotification[]);
-      }
+        const rows = Array.isArray(listResult.data) ? listResult.data : [];
+        const mappedNotifications = rows
+          .map((row) => toAppNotification(row as NotificationRow))
+          .filter((notification): notification is AppNotification => notification !== null);
 
-      if (countResult.error) {
-        setUnreadCount(0);
-        setQueryError((current) => current ?? countResult.error.message);
-      } else {
-        setUnreadCount(countResult.count ?? 0);
+        setNotifications(mappedNotifications);
       }
     } catch (error) {
       setNotifications([]);
-      setUnreadCount(0);
       setQueryError(error instanceof Error ? error.message : "No se pudieron cargar las notificaciones.");
     } finally {
       setLoading(false);
@@ -83,28 +116,38 @@ export function NotificationBell() {
   }, [activeCountry]);
 
   useEffect(() => {
-    loadNotifications();
+    loadUnreadCount();
 
     const channel = supabase
       .channel("notifications-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, loadNotifications)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => {
+        loadUnreadCount();
+        if (open) {
+          loadNotificationList();
+        }
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadNotifications]);
+  }, [loadNotificationList, loadUnreadCount, open]);
 
   useEffect(() => {
     if (open) {
-      loadNotifications();
+      loadNotificationList();
     }
-  }, [loadNotifications, open]);
+  }, [loadNotificationList, open]);
 
   const unreadLabel = useMemo(() => {
     if (unreadCount > 99) return "99+";
     return String(unreadCount);
   }, [unreadCount]);
+
+  const visibleNotifications = useMemo(
+    () => notifications.filter((notification) => Boolean(notification.id)),
+    [notifications]
+  );
 
   async function handleOpenNotification(notification: AppNotification) {
     if (!notification.leida) {
@@ -112,6 +155,12 @@ export function NotificationBell() {
         .from("notifications")
         .update({ leida: true })
         .eq("id", notification.id);
+      setUnreadCount((current) => Math.max(0, current - 1));
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id ? { ...item, leida: true } : item
+        )
+      );
     }
 
     setOpen(false);
@@ -133,7 +182,7 @@ export function NotificationBell() {
     }
 
     await query;
-    await loadNotifications();
+    await Promise.all([loadUnreadCount(), loadNotificationList()]);
     setBusy(false);
   }
 
@@ -158,10 +207,10 @@ export function NotificationBell() {
           <button
             type="button"
             aria-label="Cerrar notificaciones"
-            className="absolute inset-0 bg-[#020817]/50 backdrop-blur-sm"
+            className="absolute inset-0 z-0 bg-[#020817]/50 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          <aside className="absolute right-0 top-0 flex h-full w-full max-w-[28rem] flex-col border-l border-slate-400/10 bg-[#0F172A]/95 shadow-[0_0_40px_rgba(2,8,23,0.45)] backdrop-blur-xl">
+          <aside className="absolute right-0 top-0 z-10 flex h-full w-full max-w-[28rem] flex-col border-l border-slate-400/10 bg-[#0F172A]/95 shadow-[0_0_40px_rgba(2,8,23,0.45)] backdrop-blur-xl">
             <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-slate-50">Notificaciones</h2>
@@ -208,9 +257,9 @@ export function NotificationBell() {
                 <div className="rounded-2xl border border-danger/30 bg-danger/[0.12] p-4 text-sm leading-6 text-danger">
                   No se pudieron cargar las notificaciones: {queryError}
                 </div>
-              ) : notifications.length ? (
+              ) : visibleNotifications.length ? (
                 <div className="space-y-3">
-                  {notifications.map((notification) => {
+                  {visibleNotifications.map((notification) => {
                     const unread = !notification.leida;
 
                     return (
