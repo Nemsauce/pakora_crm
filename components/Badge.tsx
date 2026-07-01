@@ -23,6 +23,7 @@ const taskTypeClasses: Record<TaskType, string> = {
   nota_voz: "border-[rgba(167,139,250,0.3)] bg-[rgba(167,139,250,0.15)] text-[#A78BFA]",
   mensaje_confirmacion: "border-[rgba(56,189,248,0.3)] bg-[rgba(56,189,248,0.15)] text-primary",
   notificar_guia: "border-[rgba(52,211,153,0.3)] bg-[rgba(52,211,153,0.15)] text-success",
+  revisar_novedad: "border-[rgba(251,191,36,0.3)] bg-[rgba(251,191,36,0.15)] text-warning",
   presionar_entrega: "border-[rgba(248,113,113,0.3)] bg-[rgba(248,113,113,0.15)] text-danger",
   cerrar_orden: "border-[rgba(148,163,184,0.3)] bg-[rgba(148,163,184,0.15)] text-muted",
   manual: "border-[rgba(148,163,184,0.3)] bg-[rgba(148,163,184,0.15)] text-muted"

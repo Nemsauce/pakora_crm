@@ -1,6 +1,7 @@
 "use client";
 
 import { CountryToggle } from "@/components/CountryToggle";
+import { NotificationBell } from "@/components/NotificationBell";
 import { BarChart3, CheckSquare, CircleDollarSign, Package2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -58,6 +59,7 @@ export function TopNav() {
 
         <div className="flex items-center gap-3">
           <CountryToggle />
+          <NotificationBell />
           <div className="hidden h-8 items-center rounded-full border border-slate-400/10 bg-white/[0.06] px-3 text-xs font-medium text-muted shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] lg:flex">
             Operación COD
           </div>

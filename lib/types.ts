@@ -19,6 +19,7 @@ export type TaskType =
   | "nota_voz"
   | "mensaje_confirmacion"
   | "notificar_guia"
+  | "revisar_novedad"
   | "presionar_entrega"
   | "cerrar_orden"
   | "manual";
@@ -108,4 +109,15 @@ export interface StatusHistory {
   estado: string | null;
   transportadora: string | null;
   registrado_en: string | null;
+}
+
+export interface AppNotification {
+  id: string;
+  order_id: string | null;
+  tipo: string;
+  titulo: string;
+  mensaje: string;
+  leida: boolean | null;
+  pais: CountryCode | string | null;
+  created_at: string | null;
 }

@@ -23,6 +23,7 @@ const taskTypeOrder: TaskType[] = [
   "mensaje_confirmacion",
   "nota_voz",
   "notificar_guia",
+  "revisar_novedad",
   "presionar_entrega",
   "cerrar_orden",
   "manual"

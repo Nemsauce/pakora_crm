@@ -7,6 +7,7 @@ export const taskTypeLabels: Record<TaskType, string> = {
   nota_voz: "Nota de voz",
   mensaje_confirmacion: "Mensaje",
   notificar_guia: "Guía",
+  revisar_novedad: "Novedad",
   presionar_entrega: "Presionar",
   cerrar_orden: "Cerrar",
   manual: "Manual"
